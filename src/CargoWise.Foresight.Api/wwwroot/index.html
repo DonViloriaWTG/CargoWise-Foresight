@@ -1204,9 +1204,15 @@ async function checkHealth() {
         if (ds === 'Odyssey' && data.odyssey) {
             const od = data.odyssey;
             document.getElementById('dataDot').style.background = od.connected ? '#22c55e' : '#ef4444';
-            document.getElementById('dataLabel').textContent = od.connected
-                ? `\u{1F5C4}\u{FE0F} ODYSSEY: ${od.ports.toLocaleString()} ports, ${od.carriers} carriers, ${od.countries} countries`
-                : `\u{1F5C4}\u{FE0F} ODYSSEY: Disconnected`;
+            if (od.connected) {
+                const hist = od.hasShipmentHistory
+                    ? `\u{1F4CA} Live: ${od.historicalStats.carrierRoutes} carriers, ${od.historicalStats.portPairs} routes, ${od.historicalStats.customsCountries} customs`
+                    : '\u{1F4D0} Estimates (no shipment history yet)';
+                document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} ODYSSEY: ${od.ports.toLocaleString()} ports, ${od.carriers} carriers`;
+                document.getElementById('dataLabel').title = `${od.countries} countries | ${hist}`;
+            } else {
+                document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} ODYSSEY: Disconnected`;
+            }
         } else {
             document.getElementById('dataDot').style.background = '#f59e0b';
             document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} Data: Mock (sample data)`;

@@ -110,7 +110,14 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
             connected = odyStatus.Connected,
             ports = odyStatus.PortCount,
             carriers = odyStatus.CarrierCount,
-            countries = odyStatus.CountryCount
+            countries = odyStatus.CountryCount,
+            hasShipmentHistory = odyStatus.HasShipmentHistory,
+            historicalStats = new
+            {
+                carrierRoutes = odyStatus.CarrierStatCount,
+                portPairs = odyStatus.RouteStatCount,
+                customsCountries = odyStatus.CustomsStatCount
+            }
         };
     }
 
