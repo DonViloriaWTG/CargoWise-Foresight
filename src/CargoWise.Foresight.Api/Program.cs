@@ -77,6 +77,19 @@ app.UseSwaggerUI(c =>
 
 app.MapControllers();
 
+// Reference data endpoints
+app.MapGet("/api/ports", async (string? q, IDataAdapter data, CancellationToken ct) =>
+{
+    var results = await data.SearchPortsAsync(q ?? "", 20, ct);
+    return Results.Ok(results);
+});
+
+app.MapGet("/api/carriers", async (IDataAdapter data, CancellationToken ct) =>
+{
+    var results = await data.GetCarrierListAsync(ct);
+    return Results.Ok(results);
+});
+
 // Health endpoint
 app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaOptions> ollamaOpts, IConfiguration config, CancellationToken ct) =>
 {

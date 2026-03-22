@@ -162,4 +162,35 @@ public sealed class MockDataAdapter : IDataAdapter
         Demurrage.TryGetValue(mode, out var prior);
         return Task.FromResult(prior);
     }
+
+    private static readonly List<PortInfo> MockPorts =
+    [
+        new("CNSHA", "Shanghai", "CN"), new("USLAX", "Los Angeles", "US"),
+        new("USNYC", "New York", "US"), new("DEHAM", "Hamburg", "DE"),
+        new("NLRTM", "Rotterdam", "NL"), new("AUSYD", "Sydney", "AU"),
+        new("SGSIN", "Singapore", "SG"), new("HKHKG", "Hong Kong", "HK"),
+        new("GBFXT", "Felixstowe", "GB"), new("JPTYO", "Tokyo", "JP")
+    ];
+
+    public Task<IReadOnlyList<PortInfo>> SearchPortsAsync(string query, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            return Task.FromResult<IReadOnlyList<PortInfo>>(Array.Empty<PortInfo>());
+
+        var results = MockPorts
+            .Where(p => p.Code.Contains(query, StringComparison.OrdinalIgnoreCase)
+                     || p.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(limit)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<PortInfo>>(results);
+    }
+
+    public Task<IReadOnlyList<CarrierInfo>> GetCarrierListAsync(CancellationToken ct = default)
+    {
+        var list = Carriers.Values
+            .Select(c => new CarrierInfo(c.CarrierCode, c.CarrierCode))
+            .OrderBy(c => c.Code)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<CarrierInfo>>(list);
+    }
 }

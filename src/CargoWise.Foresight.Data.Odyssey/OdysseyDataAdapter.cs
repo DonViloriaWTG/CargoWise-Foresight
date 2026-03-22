@@ -19,7 +19,7 @@ public sealed class OdysseyDataAdapter : IDataAdapter
     private readonly ILogger<OdysseyDataAdapter> _logger;
 
     // Cached reference data
-    private readonly Lazy<Task<HashSet<string>>> _validPortCodes;
+    private readonly Lazy<Task<Dictionary<string, PortRecord>>> _ports;
     private readonly Lazy<Task<Dictionary<string, CarrierRecord>>> _carriers;
     private readonly Lazy<Task<Dictionary<string, CountryRecord>>> _countries;
 
@@ -34,7 +34,7 @@ public sealed class OdysseyDataAdapter : IDataAdapter
     {
         _connectionString = options.Value.ConnectionString;
         _logger = logger;
-        _validPortCodes = new Lazy<Task<HashSet<string>>>(LoadPortCodesAsync);
+        _ports = new Lazy<Task<Dictionary<string, PortRecord>>>(LoadPortsAsync);
         _carriers = new Lazy<Task<Dictionary<string, CarrierRecord>>>(LoadCarriersAsync);
         _countries = new Lazy<Task<Dictionary<string, CountryRecord>>>(LoadCountriesAsync);
         _hasShipmentData = new Lazy<Task<bool>>(CheckShipmentDataAsync);
@@ -88,13 +88,13 @@ public sealed class OdysseyDataAdapter : IDataAdapter
 
     public async Task<RoutePrior?> GetRoutePriorAsync(string origin, string destination, string mode, CancellationToken ct = default)
     {
-        var ports = await _validPortCodes.Value;
+        var ports = await _ports.Value;
         var originUp = origin.ToUpperInvariant();
         var destUp = destination.ToUpperInvariant();
 
-        if (!ports.Contains(originUp))
+        if (!ports.ContainsKey(originUp))
             _logger.LogWarning("Origin port '{Origin}' not found in ODYSSEY RefUNLOCO", origin);
-        if (!ports.Contains(destUp))
+        if (!ports.ContainsKey(destUp))
             _logger.LogWarning("Destination port '{Destination}' not found in ODYSSEY RefUNLOCO", destination);
 
         // Try historical route data first
@@ -215,7 +215,7 @@ public sealed class OdysseyDataAdapter : IDataAdapter
     {
         try
         {
-            var ports = await _validPortCodes.Value;
+            var ports = await _ports.Value;
             var carriers = await _carriers.Value;
             var countries = await _countries.Value;
             var hasHistory = await _hasShipmentData.Value;
@@ -231,33 +231,61 @@ public sealed class OdysseyDataAdapter : IDataAdapter
         }
     }
 
+    public async Task<IReadOnlyList<PortInfo>> SearchPortsAsync(string query, int limit = 20, CancellationToken ct = default)
+    {
+        var ports = await _ports.Value;
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            return Array.Empty<PortInfo>();
+
+        var q = query.Trim().ToUpperInvariant();
+        return ports.Values
+            .Where(p => p.Code.Contains(q, StringComparison.OrdinalIgnoreCase)
+                     || p.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(p => p.Code.StartsWith(q, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(p => p.Code)
+            .Take(limit)
+            .Select(p => new PortInfo(p.Code, p.Name, p.Country))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<CarrierInfo>> GetCarrierListAsync(CancellationToken ct = default)
+    {
+        var carriers = await _carriers.Value;
+        return carriers.Values
+            .OrderBy(c => c.Name)
+            .Select(c => new CarrierInfo(c.Code.Trim(), c.Name))
+            .ToList();
+    }
+
     #region Reference data loaders
 
-    private async Task<HashSet<string>> LoadPortCodesAsync()
+    private async Task<Dictionary<string, PortRecord>> LoadPortsAsync()
     {
-        var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var ports = new Dictionary<string, PortRecord>(StringComparer.OrdinalIgnoreCase);
         try
         {
             await using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(
-                "SELECT RL_Code FROM RefUNLOCO WHERE RL_IsActive = 1", conn);
+                "SELECT RL_Code, RL_PortName, RL_RN_NKCountryCode FROM RefUNLOCO WHERE RL_IsActive = 1", conn);
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
                 var code = reader.GetString(0).Trim();
+                var name = reader.GetString(1).Trim();
+                var country = reader.GetString(2).Trim();
                 if (!string.IsNullOrEmpty(code))
-                    codes.Add(code);
+                    ports[code] = new PortRecord(code, name, country);
             }
 
-            _logger.LogInformation("Loaded {Count} active port codes from ODYSSEY", codes.Count);
+            _logger.LogInformation("Loaded {Count} active ports from ODYSSEY", ports.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load port codes from ODYSSEY");
+            _logger.LogError(ex, "Failed to load ports from ODYSSEY");
         }
 
-        return codes;
+        return ports;
     }
 
     private async Task<Dictionary<string, CarrierRecord>> LoadCarriersAsync()
@@ -688,6 +716,7 @@ public sealed class OdysseyDataAdapter : IDataAdapter
     #endregion
 
     private enum RegionDistance { Local, Regional, Intercontinental }
+    internal sealed record PortRecord(string Code, string Name, string Country);
     internal sealed record CarrierRecord(string Code, string Name);
     internal sealed record CountryRecord(string Code, string Description, bool IsSanctioned, string Currency);
     internal sealed record CarrierStats(int SampleCount, double MeanDelayDays, double DelayStdDev, double ReliabilityScore);
