@@ -26,6 +26,9 @@ Users supply a **baseline state** + a **proposed change**. The engine runs Monte
 │                    REST API (ASP.NET 8)                      │
 │   POST /simulations/run  · POST /simulations/explain         │
 │   POST /scenarios        · GET /health · GET /metrics        │
+├─────────────────────────────────────────────────────────────┤
+│                  Web GUI (wwwroot/index.html)                │
+│   Scenario builder · Visual results · Cassandra AI Advisor   │
 └──────────────┬──────────────────────┬───────────────────────┘
                │                      │
      ┌─────────▼──────────┐  ┌───────▼────────────┐
@@ -44,9 +47,9 @@ Users supply a **baseline state** + a **proposed change**. The engine runs Monte
 
 | Project | Purpose |
 |---------|---------|
-| `CargoWise.Foresight.Api` | REST API, controllers, middleware, observability |
-| `CargoWise.Foresight.Core` | Domain models, simulation kernel, explanation service, interfaces |
-| `CargoWise.Foresight.Llm.Ollama` | Ollama HTTP client with retry + circuit breaker |
+| `CargoWise.Foresight.Api` | REST API, controllers, middleware, static file serving (GUI), observability |
+| `CargoWise.Foresight.Core` | Domain models, simulation kernel, explanation service (Cassandra), interfaces |
+| `CargoWise.Foresight.Llm.Ollama` | Ollama HTTP client with retry + circuit breaker + model detection |
 | `CargoWise.Foresight.Data.Mock` | Mock data adapter with deterministic sample priors |
 | `CargoWise.Foresight.Tests` | Unit tests, contract validation, injection defense tests |
 
@@ -71,7 +74,10 @@ dotnet build
 dotnet run --project src/CargoWise.Foresight.Api
 ```
 
-The API starts at **http://localhost:5248**. Swagger UI: http://localhost:5248/swagger
+The API starts at **http://localhost:5248**.
+
+- **Web GUI:** http://localhost:5248 — interactive scenario builder and results viewer
+- **Swagger UI:** http://localhost:5248/swagger — API documentation
 
 Without Ollama running, the engine still works — simulations return full numeric results, and explanations use a template-based fallback (no LLM narrative).
 
@@ -97,13 +103,34 @@ Invoke-RestMethod -Uri http://localhost:5248/simulations/run -Method Post -Conte
 
 ---
 
+## Web GUI
+
+The application includes a built-in web interface at **http://localhost:5248** for non-technical users to run simulations without using the API directly.
+
+### Features
+
+- **Scenario Builder** — Pick from 3 pre-loaded sample scenarios or configure your own (origin, destination, mode, carrier, hazmat, value, change type, simulation parameters)
+- **One-Click Simulation** — Click "Run Simulation" to execute what-if analysis
+- **Risk Gauge** — Color-coded overall risk score (green/amber/red/critical)
+- **Key Metrics** — ETA median, cost median, SLA breach rate, risks flagged
+- **Interactive Histograms** — ETA and cost distributions with hover tooltips
+- **Risk Cards** — Severity-coded risk flags with probabilities, rationale, and mitigations
+- **Recommendations** — Actionable options with expected deltas (cost/time impact)
+- **Cassandra AI Advisor** — LLM-generated or template-based narrative explanations with visual charts (risk gauge, percentile bars, risk probability chart)
+- **Live Status Indicators** — Header shows API health and Ollama LLM status with model name
+- **Raw JSON** — Full simulation response in a code viewer for developers
+
+No build tools, npm, or frameworks required — the GUI is a single self-contained HTML file served from `wwwroot/`.
+
+---
+
 ## With Ollama (Local LLM)
 
 ### Option A: Run Ollama Directly
 
 ```bash
 # Install Ollama (see https://ollama.com/download)
-ollama pull llama3.2
+ollama pull phi3:mini
 
 # Verify it's running:
 curl http://localhost:11434/api/tags
@@ -118,7 +145,7 @@ dotnet run --project src/CargoWise.Foresight.Api
 docker compose up -d
 
 # Pull a model inside the Ollama container:
-docker compose exec ollama ollama pull llama3.2
+docker compose exec ollama ollama pull phi3:mini
 ```
 
 ### Configuration
@@ -128,7 +155,7 @@ Set via `appsettings.json` or environment variables:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Ollama:BaseUrl` | `http://localhost:11434` | Ollama API endpoint |
-| `Ollama:Model` | `llama3.2` | Model to use for explanations |
+| `Ollama:Model` | `phi3:mini` | Model to use for explanations |
 | `Ollama:TimeoutSeconds` | `120` | HTTP timeout |
 | `Ollama:MaxRetries` | `2` | Retry attempts |
 | `Ollama:CircuitBreakerThreshold` | `3` | Failures before circuit opens |
@@ -167,7 +194,11 @@ Load a saved scenario.
 
 ### `GET /health`
 
-Health check endpoint.
+Health check endpoint. Returns API status and Ollama LLM status including:
+- Whether Ollama is running
+- The configured model name
+- Available models on the Ollama instance
+- Whether the configured model is ready to use
 
 ### `GET /metrics`
 
@@ -289,8 +320,14 @@ Prometheus-style metrics snapshot.
 
 ### Explanation Response
 
-When Ollama is available, explanations are LLM-generated narratives tailored to the audience (operator/manager/customer). When unavailable, a structured template fallback is used. The `generatedByLlm` field indicates which mode was used.
+When Ollama is available and the configured model is installed, explanations are LLM-generated narratives authored by **Cassandra** — the CargoWise Foresight AI advisor persona — tailored to the audience (operator/manager/customer). When unavailable, a structured template fallback is used. The `generatedByLlm` field indicates which mode was used.
 
+The GUI header displays real-time Ollama status:
+- **Green** "Ollama: Ready" — LLM explanations active
+- **Amber** "Ollama: Model Missing" — Ollama running but configured model not pulled
+- **Red** "Ollama: Offline" — Ollama not running, template fallback in use
+
+The currently selected model is displayed separately in the header as `model: <configuredModel>`.
 ---
 
 ## Safety & Security
@@ -300,6 +337,7 @@ When Ollama is available, explanations are LLM-generated narratives tailored to 
 - **Prompt injection defense:** System prompts include strict rules; user inputs sanitized before LLM.
 - **Data redaction:** Internal traces/state are stripped before sending to LLM.
 - **Circuit breaker:** Ollama client trips after repeated failures; auto-resets.
+- **Model detection:** Health endpoint verifies the configured model is actually available, preventing misleading "online" status.
 - **Safe mode:** If LLM is down, numeric simulation still works; explanations fall back to templates.
 - **No auto-acting:** LLM cannot call tools, execute code, or mutate anything.
 
@@ -332,14 +370,15 @@ Three sample scenarios are included in `samples/scenarios/`:
 ├── Dockerfile
 ├── docker-compose.yml
 ├── src/
-│   ├── CargoWise.Foresight.Api/          # REST API
+│   ├── CargoWise.Foresight.Api/          # REST API + Web GUI
+│   │   └── wwwroot/index.html            # Single-page GUI
 │   ├── CargoWise.Foresight.Core/         # Domain + simulation
 │   ├── CargoWise.Foresight.Llm.Ollama/   # Ollama client
 │   └── CargoWise.Foresight.Data.Mock/    # Mock data
 ├── tests/
 │   └── CargoWise.Foresight.Tests/        # All tests
 └── samples/
-    └── scenarios/                   # Sample JSON scenarios
+    └── scenarios/                        # Sample JSON scenarios
 ```
 
 ### Adding a New Data Adapter
