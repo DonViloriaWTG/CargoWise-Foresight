@@ -1,0 +1,34 @@
+services:
+  cargowise-foresight:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5248:5248"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Ollama__BaseUrl=http://ollama:11434
+      - Ollama__Model=llama3.2
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Uncomment the following for GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

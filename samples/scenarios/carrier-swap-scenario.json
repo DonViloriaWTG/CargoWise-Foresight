@@ -1,0 +1,64 @@
+{
+  "requestId": "sim-carrier-swap-001",
+  "seed": 42,
+  "baseline": {
+    "shipment": {
+      "id": "SHP-2026-00142",
+      "origin": "CNSHA",
+      "destination": "USLAX",
+      "incoterm": "CIF",
+      "mode": "Ocean",
+      "carrier": "MSC",
+      "plannedEtd": "2026-04-01T00:00:00Z",
+      "plannedEta": "2026-04-15T00:00:00Z",
+      "containerType": "40HC",
+      "hazmat": false,
+      "value": 125000.00
+    },
+    "workflow": {
+      "milestones": [
+        { "name": "BookingConfirmed", "plannedDate": "2026-03-28T00:00:00Z", "completed": true },
+        { "name": "CargoLoaded", "plannedDate": "2026-04-01T00:00:00Z", "completed": false },
+        { "name": "VesselDeparted", "plannedDate": "2026-04-01T12:00:00Z", "completed": false },
+        { "name": "VesselArrived", "plannedDate": "2026-04-15T00:00:00Z", "completed": false }
+      ],
+      "deadlines": [
+        { "name": "SI Cutoff", "dueDate": "2026-03-30T18:00:00Z", "consequence": "Rolling to next vessel" },
+        { "name": "Customs Filing", "dueDate": "2026-04-13T00:00:00Z", "consequence": "Customs hold at destination" }
+      ],
+      "slaTargets": [
+        { "name": "Door-to-Port Delivery", "targetDays": 18, "metric": "TransitTime" }
+      ]
+    },
+    "finance": {
+      "rateLineItems": [
+        { "description": "Ocean Freight", "amount": 2800.00, "chargeCode": "OFR" },
+        { "description": "BAF", "amount": 350.00, "chargeCode": "BAF" },
+        { "description": "THC Origin", "amount": 185.00, "chargeCode": "THC" },
+        { "description": "THC Destination", "amount": 225.00, "chargeCode": "THC" },
+        { "description": "Documentation Fee", "amount": 75.00, "chargeCode": "DOC" }
+      ],
+      "marginTarget": 0.15,
+      "currency": "USD"
+    },
+    "compliance": {
+      "commodities": ["electronics", "consumer_goods"],
+      "countriesInvolved": ["CN", "US"]
+    }
+  },
+  "changeSet": {
+    "changeType": "CarrierSwap",
+    "parameters": {
+      "newCarrier": "COSCO",
+      "reason": "Cost optimization - COSCO offering 15% lower rate"
+    }
+  },
+  "horizonDays": 30,
+  "simulationRuns": 500,
+  "objectives": {
+    "includeCost": true,
+    "includeEta": true,
+    "includeSlaRisk": true,
+    "includeComplianceRisk": true
+  }
+}

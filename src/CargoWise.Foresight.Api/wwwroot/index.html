@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CargoWise Foresight — What-If Simulator</title>
+    <style>
+        :root {
+            --primary: #1a56db;
+            --primary-light: #e1effe;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --warning: #f59e0b;
+            --warning-bg: #fffbeb;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+            --radius: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.5;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #1a56db 100%);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 .icon { font-size: 24px; }
+
+        header .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .badge-readonly {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .card h2 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 16px 0 8px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 4px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            color: var(--gray-900);
+            transition: border-color 0.15s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-row {
+            margin-bottom: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover { background: #1e40af; }
+        .btn-primary:disabled { background: var(--gray-300); cursor: not-allowed; }
+
+        .btn-outline {
+            background: white;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-outline:hover { background: var(--primary-light); }
+
+        .results-area { display: flex; flex-direction: column; gap: 20px; }
+
+        .placeholder-msg {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--gray-500);
+        }
+
+        .placeholder-msg .icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* Summary banner */
+        .summary-banner {
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .summary-banner.risk-low { background: var(--success-bg); border: 1px solid #bbf7d0; }
+        .summary-banner.risk-moderate { background: var(--warning-bg); border: 1px solid #fde68a; }
+        .summary-banner.risk-high { background: var(--danger-bg); border: 1px solid #fecaca; }
+        .summary-banner.risk-critical { background: #fef2f2; border: 1px solid #f87171; }
+
+        .risk-gauge {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .risk-gauge.low { background: var(--success); }
+        .risk-gauge.moderate { background: var(--warning); }
+        .risk-gauge.high { background: #ef4444; }
+        .risk-gauge.critical { background: #991b1b; }
+
+        .summary-text h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-900);
+            text-transform: none;
+            letter-spacing: 0;
+            margin: 0 0 4px;
+        }
+
+        .summary-text p {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin: 0;
+        }
+
+        /* Metric cards */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            text-align: center;
+        }
+
+        .metric-card .metric-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-500);
+            font-weight: 600;
+        }
+
+        .metric-card .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin: 4px 0;
+        }
+
+        .metric-card .metric-detail {
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
+        /* Histogram */
+        .histogram {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 80px;
+            margin-top: 8px;
+        }
+
+        .histogram .bar {
+            flex: 1;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+            position: relative;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+
+        .histogram .bar:hover {
+            opacity: 1;
+        }
+
+        .histogram .bar .tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gray-900);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 10;
+            margin-bottom: 4px;
+        }
+
+        .histogram .bar:hover .tooltip { display: block; }
+
+        .hist-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        /* Risk flags */
+        .risk-item {
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 10px;
+            border-left: 4px solid;
+        }
+
+        .risk-item.severity-Low { border-left-color: #fbbf24; background: #fffef5; }
+        .risk-item.severity-Medium { border-left-color: #f97316; background: #fff7ed; }
+        .risk-item.severity-High { border-left-color: #ef4444; background: #fef2f2; }
+        .risk-item.severity-Critical { border-left-color: #991b1b; background: #fef2f2; }
+
+        .risk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .risk-type {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .risk-prob {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .risk-rationale {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-bottom: 8px;
+        }
+
+        .mitigation-tag {
+            display: inline-block;
+            background: var(--gray-100);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--gray-700);
+            margin: 2px 4px 2px 0;
+        }
+
+        /* Recommendations */
+        .rec-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            background: white;
+        }
+
+        .rec-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .rec-body { flex: 1; }
+
+        .rec-body .rec-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .rec-body .rec-desc {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .rec-deltas {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .delta-tag {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .delta-tag.positive { background: #dcfce7; color: #166534; }
+        .delta-tag.negative { background: #fef2f2; color: #991b1b; }
+
+        /* Explanation */
+        .explanation-box {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .explanation-box .narrative {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--gray-700);
+            white-space: pre-line;
+        }
+
+        .explanation-meta {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .explanation-meta .meta-group h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            margin-bottom: 4px;
+        }
+
+        .explanation-meta .meta-group li {
+            font-size: 12px;
+            color: var(--gray-700);
+            margin-left: 16px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-500);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.15s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-btn:hover { color: var(--gray-900); }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .json-viewer {
+            background: var(--gray-900);
+            color: #a5f3fc;
+            padding: 16px;
+            border-radius: var(--radius);
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre;
+        }
+
+        footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--gray-500);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>
+            <span class="icon">🔮</span>
+            CargoWise Foresight
+            <span class="badge badge-readonly">READ-ONLY</span>
+        </h1>
+        <div class="subtitle">Simulation &amp; Decision AI — What-If Engine</div>
+    </div>
+    <div style="display:flex; gap:16px; align-items:center;">
+        <div style="display:flex; align-items:center; gap:6px;" title="API Status">
+            <span id="healthDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
+            <span id="healthLabel" style="font-size:12px;opacity:0.8;">Checking...</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;" title="Ollama LLM Status" id="ollamaStatus">
+            <span id="ollamaDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
+            <span id="ollamaLabel" style="font-size:12px;opacity:0.8;">🧠 Ollama: Checking...</span>
+            <span id="ollamaDetail" style="font-size:11px;opacity:0.6;"></span>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div class="grid">
+        <!-- LEFT: INPUT PANEL -->
+        <div>
+            <div class="card">
+                <h2>📋 Scenario Configuration</h2>
+
+                <div class="form-row">
+                    <label for="scenarioSelect">Load Sample Scenario</label>
+                    <select id="scenarioSelect">
+                        <option value="">— Choose a scenario —</option>
+                        <option value="carrier-swap">🔄 Carrier Swap (MSC → COSCO)</option>
+                        <option value="departure-shift">⏱️ Departure Shift (+3 days, Hazmat)</option>
+                        <option value="route-change">🗺️ Route Diversion (Sydney → Rotterdam)</option>
+                    </select>
+                </div>
+
+                <hr style="border:none;border-top:1px solid var(--gray-200);margin:16px 0;">
+
+                <h3>Shipment</h3>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label for="origin">Origin</label>
+                        <input id="origin" placeholder="e.g. CNSHA">
+                    </div>
+                    <div class="form-row">
+                        <label for="destination">Destination</label>
+                        <input id="destination" placeholder="e.g. USLAX">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label for="mode">Mode</label>
+                        <select id="mode">
+                            <option value="Ocean">Ocean</option>
+                            <option value="Air">Air</option>
+                            <option value="Road">Road</option>
+                            <option value="Rail">Rail</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="carrier">Current Carrier</label>
+                        <input id="carrier" placeholder="e.g. MSC">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label for="hazmat">Hazmat?</label>
+                        <select id="hazmat">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="shipmentValue">Shipment Value</label>
+                        <input id="shipmentValue" type="number" placeholder="100000">
+                    </div>
+                </div>
+
+                <h3>Change (What-If)</h3>
+                <div class="form-row">
+                    <label for="changeType">Change Type</label>
+                    <select id="changeType">
+                        <option value="CarrierSwap">Carrier Swap</option>
+                        <option value="DepartureShift">Departure Shift</option>
+                        <option value="RouteChange">Route Change</option>
+                        <option value="CustomsFilingChange">Customs Filing Change</option>
+                        <option value="PaymentTermChange">Payment Term Change</option>
+                    </select>
+                </div>
+                <div id="changeParams">
+                    <div class="form-row" id="paramCarrier">
+                        <label for="newCarrier">New Carrier</label>
+                        <input id="newCarrier" placeholder="e.g. COSCO">
+                    </div>
+                    <div class="form-row" id="paramShift" style="display:none;">
+                        <label for="shiftDays">Shift Days</label>
+                        <input id="shiftDays" type="number" value="3">
+                    </div>
+                    <div class="form-row" id="paramRouteDest" style="display:none;">
+                        <label for="newDestination">New Destination</label>
+                        <input id="newDestination" placeholder="e.g. NLRTM">
+                    </div>
+                </div>
+
+                <h3>Simulation</h3>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label for="simRuns">Simulation Runs</label>
+                        <input id="simRuns" type="number" value="500" min="10" max="100000">
+                    </div>
+                    <div class="form-row">
+                        <label for="seed">Seed (reproducibility)</label>
+                        <input id="seed" type="number" value="42">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="slaDays">SLA Target (days)</label>
+                    <input id="slaDays" type="number" value="18">
+                </div>
+
+                <div style="margin-top:20px; display:flex; gap:8px;">
+                    <button class="btn btn-primary" id="runBtn" onclick="runSimulation()">
+                        ▶ Run Simulation
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: RESULTS PANEL -->
+        <div class="results-area" id="resultsArea">
+            <div class="card">
+                <div class="placeholder-msg" id="placeholder">
+                    <div class="icon">🔮</div>
+                    <p style="font-size:16px;font-weight:600;margin-bottom:4px;">No simulation results yet</p>
+                    <p>Choose a scenario or configure your own, then click <strong>Run Simulation</strong>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    CargoWise Foresight — What-If Engine MVP &nbsp;|&nbsp; Advisory only — no data is modified &nbsp;|&nbsp;
+    <a href="/swagger" style="color:var(--primary);">API Docs (Swagger)</a>
+</footer>
+
+<script>
+const API_BASE = '';
+
+// =================== SCENARIOS =====================
+const scenarios = {
+    'carrier-swap': {
+        origin: 'CNSHA', destination: 'USLAX', mode: 'Ocean', carrier: 'MSC',
+        hazmat: false, value: 125000, changeType: 'CarrierSwap',
+        params: { newCarrier: 'COSCO' }, simRuns: 500, seed: 42, slaDays: 18,
+        commodities: ['electronics','consumer_goods'], countries: ['CN','US'],
+        rateItems: [
+            { description: 'Ocean Freight', amount: 2800, chargeCode: 'OFR' },
+            { description: 'BAF', amount: 350, chargeCode: 'BAF' },
+            { description: 'THC Origin', amount: 185, chargeCode: 'THC' },
+            { description: 'THC Destination', amount: 225, chargeCode: 'THC' },
+            { description: 'Documentation Fee', amount: 75, chargeCode: 'DOC' }
+        ]
+    },
+    'departure-shift': {
+        origin: 'DEHAM', destination: 'USNYC', mode: 'Ocean', carrier: 'HAPAG',
+        hazmat: true, value: 89000, changeType: 'DepartureShift',
+        params: { shiftDays: 3 }, simRuns: 500, seed: 123, slaDays: 16,
+        commodities: ['chemicals'], countries: ['DE','US'],
+        rateItems: [
+            { description: 'Ocean Freight', amount: 1950, chargeCode: 'OFR' },
+            { description: 'DG Surcharge', amount: 450, chargeCode: 'DGS' },
+            { description: 'BAF', amount: 280, chargeCode: 'BAF' },
+            { description: 'THC', amount: 350, chargeCode: 'THC' }
+        ]
+    },
+    'route-change': {
+        origin: 'CNSHA', destination: 'AUSYD', mode: 'Ocean', carrier: 'MAERSK',
+        hazmat: false, value: 210000, changeType: 'RouteChange',
+        params: { newDestination: 'NLRTM' }, simRuns: 1000, seed: 7, slaDays: 22,
+        commodities: ['food','consumer_goods'], countries: ['CN','AU'],
+        rateItems: [
+            { description: 'Ocean Freight', amount: 2400, chargeCode: 'OFR' },
+            { description: 'BAF', amount: 320, chargeCode: 'BAF' },
+            { description: 'THC Origin', amount: 185, chargeCode: 'THC' },
+            { description: 'THC Destination', amount: 275, chargeCode: 'THC' },
+            { description: 'Customs Brokerage', amount: 350, chargeCode: 'BRK' },
+            { description: 'Biosecurity Levy', amount: 44, chargeCode: 'BIO' }
+        ]
+    }
+};
+
+// =================== UI LOGIC =====================
+document.getElementById('scenarioSelect').addEventListener('change', function() {
+    const s = scenarios[this.value];
+    if (!s) return;
+    document.getElementById('origin').value = s.origin;
+    document.getElementById('destination').value = s.destination;
+    document.getElementById('mode').value = s.mode;
+    document.getElementById('carrier').value = s.carrier;
+    document.getElementById('hazmat').value = String(s.hazmat);
+    document.getElementById('shipmentValue').value = s.value;
+    document.getElementById('changeType').value = s.changeType;
+    document.getElementById('simRuns').value = s.simRuns;
+    document.getElementById('seed').value = s.seed;
+    document.getElementById('slaDays').value = s.slaDays;
+    updateChangeParams();
+    if (s.changeType === 'CarrierSwap') document.getElementById('newCarrier').value = s.params.newCarrier || '';
+    if (s.changeType === 'DepartureShift') document.getElementById('shiftDays').value = s.params.shiftDays || 3;
+    if (s.changeType === 'RouteChange') document.getElementById('newDestination').value = s.params.newDestination || '';
+});
+
+document.getElementById('changeType').addEventListener('change', updateChangeParams);
+
+function updateChangeParams() {
+    const ct = document.getElementById('changeType').value;
+    document.getElementById('paramCarrier').style.display = ct === 'CarrierSwap' ? '' : 'none';
+    document.getElementById('paramShift').style.display = ct === 'DepartureShift' ? '' : 'none';
+    document.getElementById('paramRouteDest').style.display = ct === 'RouteChange' ? '' : 'none';
+}
+
+// =================== BUILD REQUEST =====================
+function buildRequest() {
+    const ct = document.getElementById('changeType').value;
+    const params = {};
+    if (ct === 'CarrierSwap') params.newCarrier = document.getElementById('newCarrier').value;
+    if (ct === 'DepartureShift') params.shiftDays = parseFloat(document.getElementById('shiftDays').value) || 3;
+    if (ct === 'RouteChange') params.newDestination = document.getElementById('newDestination').value;
+
+    const selScenario = scenarios[document.getElementById('scenarioSelect').value];
+    const commodities = selScenario?.commodities || ['general_cargo'];
+    const countries = selScenario?.countries || [document.getElementById('origin').value.substring(0,2), document.getElementById('destination').value.substring(0,2)];
+    const rateItems = selScenario?.rateItems || [{ description: 'Freight', amount: 2000, chargeCode: 'FRT' }];
+
+    return {
+        requestId: 'gui-' + Date.now(),
+        seed: parseInt(document.getElementById('seed').value) || 42,
+        baseline: {
+            shipment: {
+                id: 'SHP-GUI-' + Math.floor(Math.random()*10000),
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value,
+                mode: document.getElementById('mode').value,
+                carrier: document.getElementById('carrier').value,
+                hazmat: document.getElementById('hazmat').value === 'true',
+                value: parseFloat(document.getElementById('shipmentValue').value) || 100000
+            },
+            workflow: {
+                milestones: [],
+                deadlines: [],
+                slaTargets: [{ name: 'Delivery SLA', targetDays: parseFloat(document.getElementById('slaDays').value) || 21, metric: 'TransitTime' }]
+            },
+            finance: {
+                rateLineItems: rateItems,
+                currency: 'USD'
+            },
+            compliance: {
+                commodities: commodities,
+                countriesInvolved: countries
+            }
+        },
+        changeSet: { changeType: ct, parameters: params },
+        simulationRuns: parseInt(document.getElementById('simRuns').value) || 500,
+        horizonDays: 30
+    };
+}
+
+// =================== RUN SIMULATION =====================
+let lastSimResult = null;
+
+async function runSimulation() {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Running...';
+
+    try {
+        const request = buildRequest();
+        const resp = await fetch(API_BASE + '/simulations/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.title || err.detail || `HTTP ${resp.status}`);
+        }
+
+        lastSimResult = await resp.json();
+        renderResults(lastSimResult, request);
+    } catch (e) {
+        document.getElementById('resultsArea').innerHTML = `
+            <div class="card">
+                <div style="color:var(--danger);padding:20px;text-align:center;">
+                    <div style="font-size:32px;margin-bottom:8px;">⚠️</div>
+                    <p style="font-weight:600;">Simulation Failed</p>
+                    <p style="font-size:13px;color:var(--gray-500);">${escHtml(e.message)}</p>
+                </div>
+            </div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '▶ Run Simulation';
+    }
+}
+
+// =================== RENDER RESULTS =====================
+function renderResults(result, request) {
+    const area = document.getElementById('resultsArea');
+    const rs = riskLevel(result.summary.overallRiskScore);
+
+    area.innerHTML = `
+        <!-- Summary Banner -->
+        <div class="summary-banner risk-${rs.level}">
+            <div class="risk-gauge ${rs.level}">${(result.summary.overallRiskScore * 100).toFixed(0)}%</div>
+            <div class="summary-text">
+                <h3>${result.summary.outcome}</h3>
+                <p>${result.summary.simulationRuns.toLocaleString()} simulations · seed ${result.summary.seed} · ${result.summary.durationMs}ms</p>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="metrics-row">
+            ${result.distributions.etaDays ? `
+            <div class="metric-card">
+                <div class="metric-label">ETA (median)</div>
+                <div class="metric-value">${result.distributions.etaDays.p50.toFixed(1)}<span style="font-size:14px;font-weight:400;"> days</span></div>
+                <div class="metric-detail">P80: ${result.distributions.etaDays.p80.toFixed(1)}d · P95: ${result.distributions.etaDays.p95.toFixed(1)}d</div>
+            </div>` : ''}
+            ${result.distributions.costUsd ? `
+            <div class="metric-card">
+                <div class="metric-label">Cost (median)</div>
+                <div class="metric-value">$${result.distributions.costUsd.p50.toFixed(0)}</div>
+                <div class="metric-detail">P80: $${result.distributions.costUsd.p80.toFixed(0)} · P95: $${result.distributions.costUsd.p95.toFixed(0)}</div>
+            </div>` : ''}
+            ${result.distributions.slaBreachProbability ? `
+            <div class="metric-card">
+                <div class="metric-label">SLA Breach Rate</div>
+                <div class="metric-value">${(result.distributions.slaBreachProbability.mean * 100).toFixed(1)}%</div>
+                <div class="metric-detail">of simulations breached SLA</div>
+            </div>` : ''}
+            <div class="metric-card">
+                <div class="metric-label">Risks Flagged</div>
+                <div class="metric-value">${result.risks.length}</div>
+                <div class="metric-detail">${result.risks.filter(r=>r.severity==='High'||r.severity==='Critical').length} high/critical</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="card">
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab(event,'distributions')">📊 Distributions</button>
+                <button class="tab-btn" onclick="switchTab(event,'risks')">⚠️ Risks (${result.risks.length})</button>
+                <button class="tab-btn" onclick="switchTab(event,'recommendations')">💡 Recommendations</button>
+                <button class="tab-btn" onclick="switchTab(event,'explanation')">📝 Explanation</button>
+                <button class="tab-btn" onclick="switchTab(event,'raw')">{ } Raw JSON</button>
+            </div>
+
+            <div class="tab-panel active" id="tab-distributions">
+                ${renderDistributions(result.distributions)}
+            </div>
+
+            <div class="tab-panel" id="tab-risks">
+                ${renderRisks(result.risks)}
+            </div>
+
+            <div class="tab-panel" id="tab-recommendations">
+                ${renderRecommendations(result.recommendations)}
+            </div>
+
+            <div class="tab-panel" id="tab-explanation">
+                <div id="explanationContent">
+                    <div style="text-align:center;padding:20px;">
+                        <button class="btn btn-outline" onclick="generateExplanation()" id="explainBtn">
+                            📝 Generate Explanation
+                        </button>
+                        <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">Uses LLM if Ollama is running, otherwise generates a template-based summary.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-raw">
+                <div class="json-viewer">${escHtml(JSON.stringify(result, null, 2))}</div>
+            </div>
+        </div>
+    `;
+}
+
+function switchTab(event, tabId) {
+    const card = event.target.closest('.card');
+    card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    card.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+function riskLevel(score) {
+    if (score < 0.2) return { level: 'low', label: 'Low Risk' };
+    if (score < 0.5) return { level: 'moderate', label: 'Moderate Risk' };
+    if (score < 0.8) return { level: 'high', label: 'High Risk' };
+    return { level: 'critical', label: 'Critical Risk' };
+}
+
+// =================== DISTRIBUTIONS =====================
+function renderDistributions(dist) {
+    let html = '';
+    if (dist.etaDays) html += renderDistSection('ETA (Transit Days)', dist.etaDays, 'days');
+    if (dist.costUsd) html += renderDistSection('Cost (USD)', dist.costUsd, 'USD');
+    return html || '<p style="color:var(--gray-500);">No distribution data available.</p>';
+}
+
+function renderDistSection(title, d, unit) {
+    const maxCount = Math.max(...d.histogram.map(b => b.count), 1);
+    const bars = d.histogram.map(b => {
+        const pct = (b.count / maxCount) * 100;
+        const label = unit === 'USD'
+            ? `$${b.lowerBound.toFixed(0)}–$${b.upperBound.toFixed(0)}: ${b.count}`
+            : `${b.lowerBound.toFixed(1)}–${b.upperBound.toFixed(1)} ${unit}: ${b.count}`;
+        return `<div class="bar" style="height:${Math.max(pct, 3)}%"><div class="tooltip">${label}</div></div>`;
+    }).join('');
+
+    const lo = d.histogram[0]?.lowerBound ?? 0;
+    const hi = d.histogram[d.histogram.length-1]?.upperBound ?? 0;
+    const loLabel = unit === 'USD' ? '$' + lo.toFixed(0) : lo.toFixed(1);
+    const hiLabel = unit === 'USD' ? '$' + hi.toFixed(0) : hi.toFixed(1);
+
+    return `
+        <h3 style="margin-top:16px;">${title}</h3>
+        <div style="display:flex;gap:24px;font-size:13px;color:var(--gray-500);margin-bottom:4px;">
+            <span>Mean: <strong>${unit==='USD'?'$':''}${d.mean.toFixed(unit==='USD'?0:1)}</strong></span>
+            <span>Std Dev: <strong>${d.stdDev.toFixed(unit==='USD'?0:2)}</strong></span>
+            <span>P50: <strong>${unit==='USD'?'$':''}${d.p50.toFixed(unit==='USD'?0:1)}</strong></span>
+            <span>P80: <strong>${unit==='USD'?'$':''}${d.p80.toFixed(unit==='USD'?0:1)}</strong></span>
+            <span>P95: <strong>${unit==='USD'?'$':''}${d.p95.toFixed(unit==='USD'?0:1)}</strong></span>
+        </div>
+        <div class="histogram">${bars}</div>
+        <div class="hist-labels"><span>${loLabel}</span><span>${hiLabel}</span></div>
+    `;
+}
+
+// =================== RISKS =====================
+function renderRisks(risks) {
+    if (!risks.length) return '<p style="color:var(--gray-500);">No risks flagged — looking good! ✅</p>';
+    return risks.map(r => `
+        <div class="risk-item severity-${r.severity}">
+            <div class="risk-header">
+                <span class="risk-type">${formatRiskType(r.type)}</span>
+                <span class="risk-prob" style="color:${probColor(r.probability)}">${(r.probability*100).toFixed(1)}%</span>
+            </div>
+            <div style="margin-bottom:4px;">
+                <span class="badge" style="background:${severityColor(r.severity)};color:white;">${r.severity}</span>
+            </div>
+            <div class="risk-rationale">${escHtml(r.rationaleFacts)}</div>
+            ${r.mitigations?.length ? '<div>' + r.mitigations.map(m => `<span class="mitigation-tag">💡 ${escHtml(m)}</span>`).join('') + '</div>' : ''}
+        </div>
+    `).join('');
+}
+
+function formatRiskType(t) {
+    return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function probColor(p) {
+    if (p > 0.5) return '#dc2626';
+    if (p > 0.3) return '#ea580c';
+    if (p > 0.15) return '#d97706';
+    return '#65a30d';
+}
+
+function severityColor(s) {
+    return { Low: '#f59e0b', Medium: '#f97316', High: '#ef4444', Critical: '#991b1b' }[s] || '#6b7280';
+}
+
+// =================== RECOMMENDATIONS =====================
+function renderRecommendations(recs) {
+    if (!recs.length) return '<p style="color:var(--gray-500);">No recommendations generated.</p>';
+    const icons = { ExpressMode: '✈️', KeepCurrentCarrier: '🚢', SplitShipment: '📦' };
+    return recs.map(r => {
+        const deltas = Object.entries(r.expectedDeltas || {}).map(([k,v]) => {
+            const isGood = (k.includes('eta') && v < 0) || (k.includes('cost') && v < 0);
+            const cls = v < 0 ? 'positive' : 'negative';
+            const prefix = v > 0 ? '+' : '';
+            const fmt = k.includes('cost') ? `$${Math.abs(v).toFixed(0)}` : `${Math.abs(v).toFixed(1)} days`;
+            return `<span class="delta-tag ${cls}">${prefix}${v < 0 ? '-' : '+'}${fmt} ${k.replace('Usd','').replace(/([A-Z])/g,' $1').trim()}</span>`;
+        }).join('');
+        return `
+            <div class="rec-item">
+                <div class="rec-icon">${icons[r.option] || '💡'}</div>
+                <div class="rec-body">
+                    <div class="rec-title">${escHtml(r.option)}</div>
+                    <div class="rec-desc">${escHtml(r.description)}</div>
+                    ${deltas ? `<div class="rec-deltas">${deltas}</div>` : ''}
+                    <div style="margin-top:4px;font-size:11px;color:var(--gray-500);">Confidence: ${(r.confidence*100).toFixed(0)}%</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// =================== EXPLANATION GRAPHS =====================
+function buildExplainRiskGauge(result) {
+    const score = result.summary.overallRiskScore;
+    const pct = (score * 100).toFixed(0);
+    const rl = riskLevel(score);
+    const colors = { low: '#16a34a', moderate: '#f59e0b', high: '#ef4444', critical: '#991b1b' };
+    const color = colors[rl.level];
+    const circumference = 2 * Math.PI * 54;
+    const dashOffset = circumference - (score * circumference);
+
+    return `
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;text-align:center;">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;color:var(--gray-500);margin-bottom:12px;">Overall Risk Score</div>
+            <svg width="130" height="130" viewBox="0 0 120 120" style="display:block;margin:0 auto;">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="${color}" stroke-width="10"
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+                    stroke-linecap="round" transform="rotate(-90 60 60)" style="transition:stroke-dashoffset 0.6s;"/>
+                <text x="60" y="56" text-anchor="middle" font-size="28" font-weight="700" fill="${color}">${pct}%</text>
+                <text x="60" y="74" text-anchor="middle" font-size="11" fill="#6b7280">${rl.label}</text>
+            </svg>
+        </div>`;
+}
+
+function buildExplainEtaCostBars(result) {
+    const eta = result.distributions.etaDays;
+    const cost = result.distributions.costUsd;
+    if (!eta && !cost) return '<div></div>';
+
+    let rows = '';
+    if (eta) {
+        rows += buildPercentileRow('ETA', eta.p50, eta.p80, eta.p95, 'days', eta.p95 * 1.15);
+    }
+    if (cost) {
+        rows += buildPercentileRow('Cost', cost.p50, cost.p80, cost.p95, 'USD', cost.p95 * 1.15);
+    }
+
+    return `
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;color:var(--gray-500);margin-bottom:16px;">Percentile Breakdown</div>
+            ${rows}
+        </div>`;
+}
+
+function buildPercentileRow(label, p50, p80, p95, unit, maxVal) {
+    const fmt = (v) => unit === 'USD' ? '$' + v.toFixed(0) : v.toFixed(1) + 'd';
+    const pctOf = (v) => ((v / maxVal) * 100).toFixed(1);
+
+    return `
+        <div style="margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:6px;">${label}</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:11px;color:var(--gray-500);width:28px;text-align:right;">P50</span>
+                    <div style="flex:1;height:14px;background:var(--gray-100);border-radius:7px;overflow:hidden;">
+                        <div style="height:100%;width:${pctOf(p50)}%;background:#3b82f6;border-radius:7px;transition:width 0.4s;"></div>
+                    </div>
+                    <span style="font-size:11px;font-weight:600;color:var(--gray-700);min-width:60px;">${fmt(p50)}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:11px;color:var(--gray-500);width:28px;text-align:right;">P80</span>
+                    <div style="flex:1;height:14px;background:var(--gray-100);border-radius:7px;overflow:hidden;">
+                        <div style="height:100%;width:${pctOf(p80)}%;background:#f59e0b;border-radius:7px;transition:width 0.4s;"></div>
+                    </div>
+                    <span style="font-size:11px;font-weight:600;color:var(--gray-700);min-width:60px;">${fmt(p80)}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:11px;color:var(--gray-500);width:28px;text-align:right;">P95</span>
+                    <div style="flex:1;height:14px;background:var(--gray-100);border-radius:7px;overflow:hidden;">
+                        <div style="height:100%;width:${pctOf(p95)}%;background:#ef4444;border-radius:7px;transition:width 0.4s;"></div>
+                    </div>
+                    <span style="font-size:11px;font-weight:600;color:var(--gray-700);min-width:60px;">${fmt(p95)}</span>
+                </div>
+            </div>
+        </div>`;
+}
+
+function buildExplainRiskBars(result) {
+    if (!result.risks.length) return '';
+    const maxProb = Math.max(...result.risks.map(r => r.probability), 0.01);
+
+    const bars = result.risks.map(r => {
+        const pct = ((r.probability / Math.max(maxProb, 0.3)) * 100).toFixed(1);
+        const color = { Low: '#f59e0b', Medium: '#f97316', High: '#ef4444', Critical: '#991b1b' }[r.severity] || '#6b7280';
+        return `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span style="font-size:12px;color:var(--gray-700);width:140px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escHtml(r.type)}">${escHtml(formatRiskType(r.type))}</span>
+                <div style="flex:1;height:20px;background:var(--gray-100);border-radius:10px;overflow:hidden;position:relative;">
+                    <div style="height:100%;width:${Math.min(parseFloat(pct), 100)}%;background:${color};border-radius:10px;transition:width 0.4s;"></div>
+                </div>
+                <span style="font-size:12px;font-weight:700;color:${color};min-width:48px;">${(r.probability*100).toFixed(1)}%</span>
+                <span class="badge" style="background:${color};color:white;font-size:10px;">${r.severity}</span>
+            </div>`;
+    }).join('');
+
+    return `
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px 20px;">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;color:var(--gray-500);margin-bottom:12px;">Risk Probability Chart</div>
+            ${bars}
+        </div>`;
+}
+
+// =================== EXPLANATION =====================
+async function generateExplanation() {
+    if (!lastSimResult) return;
+    const btn = document.getElementById('explainBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="border-color:var(--primary);border-top-color:white;"></span> Generating...';
+
+    try {
+        const resp = await fetch(API_BASE + '/simulations/explain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requestId: 'explain-' + Date.now(),
+                simulationResult: lastSimResult,
+                audience: 'manager',
+                tone: 'professional'
+            })
+        });
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const explanation = await resp.json();
+
+        document.getElementById('explanationContent').innerHTML = `
+            <!-- Visual Graphs Section -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                ${buildExplainRiskGauge(lastSimResult)}
+                ${buildExplainEtaCostBars(lastSimResult)}
+            </div>
+            ${buildExplainRiskBars(lastSimResult)}
+
+            <div class="explanation-box" style="margin-top:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="font-weight:600;font-size:14px;">📝 Narrative from Cassandra</span>
+                    <span class="badge" style="background:${explanation.generatedByLlm ? '#dbeafe;color:#1e40af' : '#f3f4f6;color:#6b7280'};">
+                        ${explanation.generatedByLlm ? '🤖 LLM Generated' : '📋 Template Based'}
+                    </span>
+                </div>
+                <div class="narrative">${escHtml(explanation.narrative)}</div>
+                <div class="explanation-meta">
+                    ${explanation.keyDrivers?.length ? `<div class="meta-group"><h4>Key Drivers</h4><ul>${explanation.keyDrivers.map(d=>`<li>${escHtml(d)}</li>`).join('')}</ul></div>` : ''}
+                    ${explanation.assumptions?.length ? `<div class="meta-group"><h4>Assumptions</h4><ul>${explanation.assumptions.map(a=>`<li>${escHtml(a)}</li>`).join('')}</ul></div>` : ''}
+                    ${explanation.caveats?.length ? `<div class="meta-group"><h4>Caveats</h4><ul>${explanation.caveats.map(c=>`<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
+                </div>
+                <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--gray-200);display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:24px;">🔮</span>
+                    <div>
+                        <div style="font-weight:600;font-size:13px;color:var(--gray-900);">Cassandra</div>
+                        <div style="font-size:11px;color:var(--gray-500);">CargoWise Foresight Advisor</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        document.getElementById('explanationContent').innerHTML = `
+            <p style="color:var(--danger);">Failed to generate explanation: ${escHtml(e.message)}</p>`;
+    }
+}
+
+// =================== HEALTH CHECK =====================
+async function checkHealth() {
+    try {
+        const resp = await fetch(API_BASE + '/health');
+        const data = await resp.json();
+        document.getElementById('healthDot').style.background = '#22c55e';
+        document.getElementById('healthLabel').textContent = `${data.service} v${data.version}`;
+
+        // Ollama status
+        if (data.ollama) {
+            const o = data.ollama;
+            const detail = document.getElementById('ollamaDetail');
+
+            if (o.status === 'ready') {
+                document.getElementById('ollamaDot').style.background = '#22c55e';
+                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} Ollama: Ready`;
+                detail.textContent = `model: ${o.configuredModel}`;
+                detail.style.opacity = '0.7';
+                detail.style.color = '';
+                document.getElementById('ollamaLabel').title = `Model "${o.configuredModel}" is loaded \u2014 explanations will use AI`;
+            } else if (o.status === 'model_missing') {
+                document.getElementById('ollamaDot').style.background = '#f59e0b';
+                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} Ollama: Model Missing`;
+                detail.textContent = `need "${o.configuredModel}", have: ${o.availableModels.join(', ') || 'none'}`;
+                detail.style.opacity = '0.8';
+                detail.style.color = '#fbbf24';
+                document.getElementById('ollamaLabel').title = `Ollama is running but model "${o.configuredModel}" is not installed.\nAvailable: ${o.availableModels.join(', ') || 'none'}\nRun: ollama pull ${o.configuredModel}`;
+            } else {
+                document.getElementById('ollamaDot').style.background = '#ef4444';
+                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} Ollama: Offline`;
+                detail.textContent = '';
+                document.getElementById('ollamaLabel').title = 'Ollama is not running \u2014 explanations will use template fallback';
+            }
+        }
+    } catch {
+        document.getElementById('healthDot').style.background = '#ef4444';
+        document.getElementById('healthLabel').textContent = 'API Offline';
+        document.getElementById('ollamaDot').style.background = '#ef4444';
+        document.getElementById('ollamaLabel').textContent = '\u{1F9E0} Ollama: Unknown';
+        document.getElementById('ollamaDetail').textContent = '';
+    }
+}
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+checkHealth();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>

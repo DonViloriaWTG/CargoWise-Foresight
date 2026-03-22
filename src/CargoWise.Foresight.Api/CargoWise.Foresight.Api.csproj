@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CargoWise.Foresight.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CargoWise.Foresight.Core\CargoWise.Foresight.Core.csproj" />
+    <ProjectReference Include="..\CargoWise.Foresight.Llm.Ollama\CargoWise.Foresight.Llm.Ollama.csproj" />
+    <ProjectReference Include="..\CargoWise.Foresight.Data.Mock\CargoWise.Foresight.Data.Mock.csproj" />
+  </ItemGroup>
+
+</Project>

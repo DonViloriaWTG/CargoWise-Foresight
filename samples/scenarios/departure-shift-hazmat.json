@@ -1,0 +1,63 @@
+{
+  "requestId": "sim-departure-shift-002",
+  "seed": 123,
+  "baseline": {
+    "shipment": {
+      "id": "SHP-2026-00198",
+      "origin": "DEHAM",
+      "destination": "USNYC",
+      "incoterm": "FOB",
+      "mode": "Ocean",
+      "carrier": "HAPAG",
+      "plannedEtd": "2026-04-10T00:00:00Z",
+      "plannedEta": "2026-04-22T00:00:00Z",
+      "containerType": "20GP",
+      "hazmat": true,
+      "value": 89000.00
+    },
+    "workflow": {
+      "milestones": [
+        { "name": "BookingConfirmed", "plannedDate": "2026-04-05T00:00:00Z", "completed": true },
+        { "name": "DGDeclarationSubmitted", "plannedDate": "2026-04-07T00:00:00Z", "completed": false },
+        { "name": "VesselDeparted", "plannedDate": "2026-04-10T00:00:00Z", "completed": false },
+        { "name": "VesselArrived", "plannedDate": "2026-04-22T00:00:00Z", "completed": false }
+      ],
+      "deadlines": [
+        { "name": "DG Documentation", "dueDate": "2026-04-08T12:00:00Z", "consequence": "Cargo rejection" },
+        { "name": "VGM Submission", "dueDate": "2026-04-09T18:00:00Z", "consequence": "Load refusal" }
+      ],
+      "slaTargets": [
+        { "name": "Customer Delivery Promise", "targetDays": 16, "metric": "TransitTime" }
+      ]
+    },
+    "finance": {
+      "rateLineItems": [
+        { "description": "Ocean Freight", "amount": 1950.00, "chargeCode": "OFR" },
+        { "description": "DG Surcharge", "amount": 450.00, "chargeCode": "DGS" },
+        { "description": "BAF", "amount": 280.00, "chargeCode": "BAF" },
+        { "description": "THC", "amount": 350.00, "chargeCode": "THC" }
+      ],
+      "marginTarget": 0.12,
+      "currency": "USD"
+    },
+    "compliance": {
+      "commodities": ["chemicals"],
+      "countriesInvolved": ["DE", "US"]
+    }
+  },
+  "changeSet": {
+    "changeType": "DepartureShift",
+    "parameters": {
+      "shiftDays": 3,
+      "reason": "Supplier late - cargo not ready until April 13"
+    }
+  },
+  "horizonDays": 25,
+  "simulationRuns": 500,
+  "objectives": {
+    "includeCost": true,
+    "includeEta": true,
+    "includeSlaRisk": true,
+    "includeComplianceRisk": true
+  }
+}

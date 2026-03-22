@@ -1,0 +1,66 @@
+{
+  "requestId": "sim-route-change-003",
+  "seed": 7,
+  "baseline": {
+    "shipment": {
+      "id": "SHP-2026-00215",
+      "origin": "CNSHA",
+      "destination": "AUSYD",
+      "incoterm": "DDP",
+      "mode": "Ocean",
+      "carrier": "MAERSK",
+      "plannedEtd": "2026-04-05T00:00:00Z",
+      "plannedEta": "2026-04-23T00:00:00Z",
+      "containerType": "40HC",
+      "hazmat": false,
+      "value": 210000.00
+    },
+    "workflow": {
+      "milestones": [
+        { "name": "BookingConfirmed", "plannedDate": "2026-04-01T00:00:00Z", "completed": true },
+        { "name": "CargoLoaded", "plannedDate": "2026-04-05T00:00:00Z", "completed": false },
+        { "name": "VesselDeparted", "plannedDate": "2026-04-05T12:00:00Z", "completed": false },
+        { "name": "VesselArrived", "plannedDate": "2026-04-23T00:00:00Z", "completed": false },
+        { "name": "CustomsCleared", "plannedDate": "2026-04-25T00:00:00Z", "completed": false }
+      ],
+      "deadlines": [
+        { "name": "Biosecurity Pre-clearance", "dueDate": "2026-04-20T00:00:00Z", "consequence": "Quarantine inspection delay" },
+        { "name": "Customs Entry Filing", "dueDate": "2026-04-22T00:00:00Z", "consequence": "Customs hold" }
+      ],
+      "slaTargets": [
+        { "name": "Warehouse Delivery", "targetDays": 22, "metric": "DeliveryDate" }
+      ]
+    },
+    "finance": {
+      "rateLineItems": [
+        { "description": "Ocean Freight", "amount": 2400.00, "chargeCode": "OFR" },
+        { "description": "BAF", "amount": 320.00, "chargeCode": "BAF" },
+        { "description": "THC Origin", "amount": 185.00, "chargeCode": "THC" },
+        { "description": "THC Destination", "amount": 275.00, "chargeCode": "THC" },
+        { "description": "Customs Brokerage", "amount": 350.00, "chargeCode": "BRK" },
+        { "description": "Biosecurity Levy", "amount": 44.00, "chargeCode": "BIO" }
+      ],
+      "marginTarget": 0.10,
+      "currency": "USD"
+    },
+    "compliance": {
+      "commodities": ["food", "consumer_goods"],
+      "countriesInvolved": ["CN", "AU"]
+    }
+  },
+  "changeSet": {
+    "changeType": "RouteChange",
+    "parameters": {
+      "newDestination": "NLRTM",
+      "reason": "Customer requests diversion to Rotterdam warehouse for EU distribution"
+    }
+  },
+  "horizonDays": 35,
+  "simulationRuns": 1000,
+  "objectives": {
+    "includeCost": true,
+    "includeEta": true,
+    "includeSlaRisk": true,
+    "includeComplianceRisk": true
+  }
+}
