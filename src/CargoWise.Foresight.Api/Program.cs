@@ -5,6 +5,7 @@ using CargoWise.Foresight.Core.Interfaces;
 using CargoWise.Foresight.Core.Services;
 using CargoWise.Foresight.Core.Simulation;
 using CargoWise.Foresight.Data.Mock;
+using CargoWise.Foresight.Data.Odyssey;
 using CargoWise.Foresight.Llm.Ollama;
 using Microsoft.Extensions.Options;
 
@@ -38,8 +39,18 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Core services
-builder.Services.AddSingleton<IDataAdapter, MockDataAdapter>();
+// Core services — data source selection
+var dataSource = builder.Configuration.GetValue<string>("DataSource") ?? "Mock";
+if (dataSource.Equals("Odyssey", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.Configure<OdysseyOptions>(builder.Configuration.GetSection("Odyssey"));
+    builder.Services.AddSingleton<OdysseyDataAdapter>();
+    builder.Services.AddSingleton<IDataAdapter>(sp => sp.GetRequiredService<OdysseyDataAdapter>());
+}
+else
+{
+    builder.Services.AddSingleton<IDataAdapter, MockDataAdapter>();
+}
 builder.Services.AddSingleton<ISimulationEngine, MonteCarloSimulationEngine>();
 builder.Services.AddSingleton<IExplanationService, ExplanationService>();
 
@@ -67,7 +78,7 @@ app.UseSwaggerUI(c =>
 app.MapControllers();
 
 // Health endpoint
-app.MapGet("/health", async (ILlmClient llm, IOptions<OllamaOptions> ollamaOpts, CancellationToken ct) =>
+app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaOptions> ollamaOpts, IConfiguration config, CancellationToken ct) =>
 {
     var opts = ollamaOpts.Value;
     var ollamaClient = llm as OllamaLlmClient;
@@ -88,12 +99,29 @@ app.MapGet("/health", async (ILlmClient llm, IOptions<OllamaOptions> ollamaOpts,
     else if (!modelReady) status = "model_missing";
     else status = "ready";
 
+    var dataSourceName = config.GetValue<string>("DataSource") ?? "Mock";
+    object? dataStatus = null;
+    if (data is OdysseyDataAdapter odyssey)
+    {
+        var odyStatus = await odyssey.GetStatusAsync(ct);
+        dataSourceName = "Odyssey";
+        dataStatus = new
+        {
+            connected = odyStatus.Connected,
+            ports = odyStatus.PortCount,
+            carriers = odyStatus.CarrierCount,
+            countries = odyStatus.CountryCount
+        };
+    }
+
     return Results.Ok(new
     {
         status = "healthy",
         service = "cargowise-foresight",
         version = "1.0.0-mvp",
         timestamp = DateTimeOffset.UtcNow,
+        dataSource = dataSourceName,
+        odyssey = dataStatus,
         ollama = new
         {
             available = modelReady,
