@@ -323,10 +323,11 @@ Prometheus-style metrics snapshot.
 When Ollama is available and the configured model is installed, explanations are LLM-generated narratives authored by **Cassandra** — the CargoWise Foresight AI advisor persona — tailored to the audience (operator/manager/customer). When unavailable, a structured template fallback is used. The `generatedByLlm` field indicates which mode was used.
 
 The GUI header displays real-time Ollama status:
-- **Green** "Ollama: Ready (model: phi3:mini)" — LLM explanations active
+- **Green** "Ollama: Ready" — LLM explanations active
 - **Amber** "Ollama: Model Missing" — Ollama running but configured model not pulled
 - **Red** "Ollama: Offline" — Ollama not running, template fallback in use
 
+The currently selected model is displayed separately in the header as `model: <configuredModel>`.
 ---
 
 ## Safety & Security
