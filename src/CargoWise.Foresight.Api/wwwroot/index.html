@@ -753,7 +753,7 @@ document.getElementById('scenarioSelect').addEventListener('change', function() 
     document.getElementById('origin').value = s.origin;
     document.getElementById('destination').value = s.destination;
     document.getElementById('mode').value = s.mode;
-    document.getElementById('carrier').value = s.carrier;
+    setSelectValue('carrier', s.carrier);
     document.getElementById('hazmat').value = String(s.hazmat);
     document.getElementById('shipmentValue').value = s.value;
     document.getElementById('changeType').value = s.changeType;
@@ -761,7 +761,7 @@ document.getElementById('scenarioSelect').addEventListener('change', function() 
     document.getElementById('seed').value = s.seed;
     document.getElementById('slaDays').value = s.slaDays;
     updateChangeParams();
-    if (s.changeType === 'CarrierSwap') document.getElementById('newCarrier').value = s.params.newCarrier || '';
+    if (s.changeType === 'CarrierSwap') setSelectValue('newCarrier', s.params.newCarrier || '');
     if (s.changeType === 'DepartureShift') document.getElementById('shiftDays').value = s.params.shiftDays || 3;
     if (s.changeType === 'RouteChange') document.getElementById('newDestination').value = s.params.newDestination || '';
 });
@@ -773,6 +773,21 @@ function updateChangeParams() {
     document.getElementById('paramCarrier').style.display = ct === 'CarrierSwap' ? '' : 'none';
     document.getElementById('paramShift').style.display = ct === 'DepartureShift' ? '' : 'none';
     document.getElementById('paramRouteDest').style.display = ct === 'RouteChange' ? '' : 'none';
+}
+
+// Set a select value, adding a temporary option if the value doesn't exist in the list
+function setSelectValue(selectId, value) {
+    const sel = document.getElementById(selectId);
+    if (!value) { sel.value = ''; return; }
+    // Check if value exists in options
+    const exists = Array.from(sel.options).some(o => o.value === value);
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = value + ' (scenario)';
+        sel.appendChild(opt);
+    }
+    sel.value = value;
 }
 
 // =================== BUILD REQUEST =====================
@@ -825,6 +840,19 @@ function buildRequest() {
 let lastSimResult = null;
 
 async function runSimulation() {
+    // Validate required fields
+    const origin = document.getElementById('origin').value.trim();
+    const destination = document.getElementById('destination').value.trim();
+    const carrier = document.getElementById('carrier').value.trim();
+    if (!origin || !destination) {
+        alert('Please enter both Origin and Destination ports.');
+        return;
+    }
+    if (!carrier) {
+        alert('Please select a Carrier.');
+        return;
+    }
+
     const btn = document.getElementById('runBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Running...';
