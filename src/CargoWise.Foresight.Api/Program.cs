@@ -33,7 +33,7 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new()
     {
         Title = "CargoWise Foresight — What-If Engine API",
-        Version = "v1",
+        Version = "v2",
         Description = "Read-only simulation & decision AI for logistics what-if analysis. " +
                        "Runs sandboxed Monte Carlo simulations to predict outcomes before changes are committed."
     });
@@ -71,11 +71,24 @@ app.UseStaticFiles();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "What-If Engine v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "What-If Engine v2");
     c.RoutePrefix = "swagger";
 });
 
 app.MapControllers();
+
+// Reference data endpoints
+app.MapGet("/api/ports", async (string? q, IDataAdapter data, CancellationToken ct) =>
+{
+    var results = await data.SearchPortsAsync(q ?? "", 20, ct);
+    return Results.Ok(results);
+});
+
+app.MapGet("/api/carriers", async (IDataAdapter data, CancellationToken ct) =>
+{
+    var results = await data.GetCarrierListAsync(ct);
+    return Results.Ok(results);
+});
 
 // Health endpoint
 app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaOptions> ollamaOpts, IConfiguration config, CancellationToken ct) =>
@@ -125,7 +138,7 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
     {
         status = "healthy",
         service = "cargowise-foresight",
-        version = "1.0.0-mvp",
+        version = "2.0.0-mvp",
         timestamp = DateTimeOffset.UtcNow,
         dataSource = dataSourceName,
         odyssey = dataStatus,

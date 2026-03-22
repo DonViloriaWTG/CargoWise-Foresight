@@ -139,6 +139,18 @@
             box-shadow: 0 0 0 3px var(--primary-light);
         }
 
+        .autocomplete-wrap { position: relative; }
+        .autocomplete-list {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: #fff; border: 1px solid var(--gray-300); border-top: none;
+            border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto;
+            z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .autocomplete-list div { padding: 8px 12px; cursor: pointer; font-size: 13px; }
+        .autocomplete-list div:hover, .autocomplete-list div.active { background: var(--primary-light); }
+        .autocomplete-list .port-code { font-weight: 600; }
+        .autocomplete-list .port-name { color: var(--gray-500); margin-left: 6px; }
+
         .form-row {
             margin-bottom: 12px;
         }
@@ -575,11 +587,17 @@
                 <div class="form-grid">
                     <div class="form-row">
                         <label for="origin">Origin</label>
-                        <input id="origin" placeholder="e.g. CNSHA">
+                        <div class="autocomplete-wrap">
+                            <input id="origin" placeholder="e.g. CNSHA" autocomplete="off">
+                            <div class="autocomplete-list" id="origin-list"></div>
+                        </div>
                     </div>
                     <div class="form-row">
                         <label for="destination">Destination</label>
-                        <input id="destination" placeholder="e.g. USLAX">
+                        <div class="autocomplete-wrap">
+                            <input id="destination" placeholder="e.g. USLAX" autocomplete="off">
+                            <div class="autocomplete-list" id="destination-list"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-grid">
@@ -594,7 +612,7 @@
                     </div>
                     <div class="form-row">
                         <label for="carrier">Current Carrier</label>
-                        <input id="carrier" placeholder="e.g. MSC">
+                        <select id="carrier"><option value="">Loading...</option></select>
                     </div>
                 </div>
                 <div class="form-grid">
@@ -625,7 +643,7 @@
                 <div id="changeParams">
                     <div class="form-row" id="paramCarrier">
                         <label for="newCarrier">New Carrier</label>
-                        <input id="newCarrier" placeholder="e.g. COSCO">
+                        <select id="newCarrier"><option value="">Loading...</option></select>
                     </div>
                     <div class="form-row" id="paramShift" style="display:none;">
                         <label for="shiftDays">Shift Days</label>
@@ -633,7 +651,10 @@
                     </div>
                     <div class="form-row" id="paramRouteDest" style="display:none;">
                         <label for="newDestination">New Destination</label>
-                        <input id="newDestination" placeholder="e.g. NLRTM">
+                        <div class="autocomplete-wrap">
+                            <input id="newDestination" placeholder="e.g. NLRTM" autocomplete="off">
+                            <div class="autocomplete-list" id="newDestination-list"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -675,7 +696,7 @@
 </div>
 
 <footer>
-    CargoWise Foresight — What-If Engine MVP &nbsp;|&nbsp; Advisory only — no data is modified &nbsp;|&nbsp;
+    CargoWise Foresight — What-If Engine MVP 2.0 &nbsp;|&nbsp; Advisory only — no data is modified &nbsp;|&nbsp;
     <a href="/swagger" style="color:var(--primary);">API Docs (Swagger)</a>
 </footer>
 
@@ -732,7 +753,7 @@ document.getElementById('scenarioSelect').addEventListener('change', function() 
     document.getElementById('origin').value = s.origin;
     document.getElementById('destination').value = s.destination;
     document.getElementById('mode').value = s.mode;
-    document.getElementById('carrier').value = s.carrier;
+    setSelectValue('carrier', s.carrier);
     document.getElementById('hazmat').value = String(s.hazmat);
     document.getElementById('shipmentValue').value = s.value;
     document.getElementById('changeType').value = s.changeType;
@@ -740,7 +761,7 @@ document.getElementById('scenarioSelect').addEventListener('change', function() 
     document.getElementById('seed').value = s.seed;
     document.getElementById('slaDays').value = s.slaDays;
     updateChangeParams();
-    if (s.changeType === 'CarrierSwap') document.getElementById('newCarrier').value = s.params.newCarrier || '';
+    if (s.changeType === 'CarrierSwap') setSelectValue('newCarrier', s.params.newCarrier || '');
     if (s.changeType === 'DepartureShift') document.getElementById('shiftDays').value = s.params.shiftDays || 3;
     if (s.changeType === 'RouteChange') document.getElementById('newDestination').value = s.params.newDestination || '';
 });
@@ -752,6 +773,21 @@ function updateChangeParams() {
     document.getElementById('paramCarrier').style.display = ct === 'CarrierSwap' ? '' : 'none';
     document.getElementById('paramShift').style.display = ct === 'DepartureShift' ? '' : 'none';
     document.getElementById('paramRouteDest').style.display = ct === 'RouteChange' ? '' : 'none';
+}
+
+// Set a select value, adding a temporary option if the value doesn't exist in the list
+function setSelectValue(selectId, value) {
+    const sel = document.getElementById(selectId);
+    if (!value) { sel.value = ''; return; }
+    // Check if value exists in options
+    const exists = Array.from(sel.options).some(o => o.value === value);
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = value + ' (scenario)';
+        sel.appendChild(opt);
+    }
+    sel.value = value;
 }
 
 // =================== BUILD REQUEST =====================
@@ -804,6 +840,19 @@ function buildRequest() {
 let lastSimResult = null;
 
 async function runSimulation() {
+    // Validate required fields
+    const origin = document.getElementById('origin').value.trim();
+    const destination = document.getElementById('destination').value.trim();
+    const carrier = document.getElementById('carrier').value.trim();
+    if (!origin || !destination) {
+        alert('Please enter both Origin and Destination ports.');
+        return;
+    }
+    if (!carrier) {
+        alert('Please select a Carrier.');
+        return;
+    }
+
     const btn = document.getElementById('runBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Running...';
@@ -1263,6 +1312,74 @@ function escHtml(s) {
 
 checkHealth();
 setInterval(checkHealth, 30000);
+
+// =================== REFERENCE DATA (PORTS + CARRIERS) =====================
+let carrierList = [];
+
+async function loadCarriers() {
+    try {
+        const resp = await fetch(API_BASE + '/api/carriers');
+        carrierList = await resp.json();
+        ['carrier', 'newCarrier'].forEach(id => {
+            const sel = document.getElementById(id);
+            const curVal = sel.value;
+            sel.innerHTML = '<option value="">— Select carrier —</option>' +
+                carrierList.map(c => `<option value="${escHtml(c.code)}">${escHtml(c.code)} — ${escHtml(c.name)}</option>`).join('');
+            if (curVal) sel.value = curVal;
+        });
+    } catch { /* carriers stay as loading */ }
+}
+
+function setupPortAutocomplete(inputId) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(inputId + '-list');
+    let debounceTimer = null;
+    let activeIdx = -1;
+
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const q = this.value.trim();
+        if (q.length < 2) { list.style.display = 'none'; return; }
+        debounceTimer = setTimeout(async () => {
+            try {
+                const resp = await fetch(API_BASE + '/api/ports?q=' + encodeURIComponent(q));
+                const ports = await resp.json();
+                if (!ports.length) { list.style.display = 'none'; return; }
+                activeIdx = -1;
+                list.innerHTML = ports.map((p, i) =>
+                    `<div data-code="${escHtml(p.code)}" data-idx="${i}"><span class="port-code">${escHtml(p.code)}</span><span class="port-name">${escHtml(p.name)}, ${escHtml(p.country)}</span></div>`
+                ).join('');
+                list.style.display = 'block';
+            } catch { list.style.display = 'none'; }
+        }, 200);
+    });
+
+    list.addEventListener('click', function(e) {
+        const item = e.target.closest('[data-code]');
+        if (item) { input.value = item.dataset.code; list.style.display = 'none'; }
+    });
+
+    input.addEventListener('keydown', function(e) {
+        const items = list.querySelectorAll('[data-code]');
+        if (!items.length || list.style.display === 'none') return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); input.value = items[activeIdx].dataset.code; list.style.display = 'none'; return; }
+        else if (e.key === 'Escape') { list.style.display = 'none'; return; }
+        else return;
+        items.forEach((it, i) => it.classList.toggle('active', i === activeIdx));
+        if (activeIdx >= 0) items[activeIdx].scrollIntoView({ block: 'nearest' });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !list.contains(e.target)) list.style.display = 'none';
+    });
+}
+
+setupPortAutocomplete('origin');
+setupPortAutocomplete('destination');
+setupPortAutocomplete('newDestination');
+loadCarriers();
 </script>
 </body>
 </html>
