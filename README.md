@@ -12,10 +12,25 @@ Users supply a **baseline state** + a **proposed change**. The engine runs Monte
 
 - **Predicted outcome distributions** (p50, p80, p95 + histograms — not just point estimates)
 - **Risk flags** with probabilities and severity levels
-- **Explainable narrative** suitable for operators, managers, or customers
+- **Explainable narrative** from **Cassandra**, the AI advisor persona — tailored for operators, managers, or customers
 - **Recommended mitigations** and alternative options with expected deltas
 
+The simulation kernel is pure Monte Carlo math (deterministic, seeded). Only the narrative explanation uses an LLM (Ollama). If Ollama is unavailable, Cassandra falls back to a structured template — the engine always works.
+
 **Non-goal:** This tool does NOT mutate data, execute changes, or act autonomously. Advisory only.
+
+---
+
+## Web GUI
+
+A self-contained web GUI is served at the API root (`http://localhost:5248`). It provides:
+
+- **Scenario builder** — select origin, destination, carrier, mode, and change type
+- **Visual results** — distribution charts, risk gauges, and tabbed detail views
+- **Cassandra narrative** — AI-generated explanation with visual confidence graphs
+- **Status indicators** — real-time health for API, data source (Mock/ODYSSEY), and Ollama
+
+No build tools required — vanilla HTML/CSS/JS served via ASP.NET static files.
 
 ---
 
@@ -26,31 +41,37 @@ Users supply a **baseline state** + a **proposed change**. The engine runs Monte
 │                    REST API (ASP.NET 8)                      │
 │   POST /simulations/run  · POST /simulations/explain         │
 │   POST /scenarios        · GET /health · GET /metrics        │
-├─────────────────────────────────────────────────────────────┤
-│                  Web GUI (wwwroot/index.html)                │
-│   Scenario builder · Visual results · Cassandra AI Advisor   │
+│                                                              │
+│   Web GUI (wwwroot/index.html) — served at /                 │
 └──────────────┬──────────────────────┬───────────────────────┘
                │                      │
      ┌─────────▼──────────┐  ┌───────▼────────────┐
      │   Simulation Core  │  │ Explanation Service │
-     │  (Monte Carlo, N   │  │  (LLM or template   │
-     │   runs, seeded)    │  │   fallback)         │
+     │  (Monte Carlo, N   │  │  "Cassandra" AI     │
+     │   runs, seeded)    │  │  advisor persona    │
      └─────────┬──────────┘  └───────┬────────────┘
                │                      │
      ┌─────────▼──────────┐  ┌───────▼────────────┐
      │   IDataAdapter     │  │   ILlmClient        │
-     │  (MockDataAdapter) │  │  (OllamaLlmClient)  │
+     │  MockDataAdapter   │  │  OllamaLlmClient    │
+     │  OdysseyDataAdapter│  │  (phi3:mini)         │
      └────────────────────┘  └────────────────────┘
+               │
+     ┌─────────▼──────────┐
+     │   ODYSSEY Database  │
+     │  (CargoWise SQL)    │
+     └────────────────────┘
 ```
 
 ### Projects
 
 | Project | Purpose |
 |---------|---------|
-| `CargoWise.Foresight.Api` | REST API, controllers, middleware, static file serving (GUI), observability |
-| `CargoWise.Foresight.Core` | Domain models, simulation kernel, explanation service (Cassandra), interfaces |
-| `CargoWise.Foresight.Llm.Ollama` | Ollama HTTP client with retry + circuit breaker + model detection |
+| `CargoWise.Foresight.Api` | REST API, controllers, middleware, web GUI, observability |
+| `CargoWise.Foresight.Core` | Domain models, simulation kernel, Cassandra explanation service, interfaces |
+| `CargoWise.Foresight.Llm.Ollama` | Ollama HTTP client with retry + circuit breaker |
 | `CargoWise.Foresight.Data.Mock` | Mock data adapter with deterministic sample priors |
+| `CargoWise.Foresight.Data.Odyssey` | ODYSSEY (CargoWise) database adapter — real reference data + historical shipment queries |
 | `CargoWise.Foresight.Tests` | Unit tests, contract validation, injection defense tests |
 
 ---
@@ -58,14 +79,15 @@ Users supply a **baseline state** + a **proposed change**. The engine runs Monte
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- (Optional) [Ollama](https://ollama.com/) for LLM-powered explanations
+- (Optional) [Ollama](https://ollama.com/) for LLM-powered Cassandra narratives
 - (Optional) [Docker](https://www.docker.com/) for containerized deployment
+- (Optional) SQL Server with a CargoWise **ODYSSEY** database for real data
 
 ---
 
 ## Quick Start
 
-### 1. Build & Run (without Ollama)
+### 1. Build & Run
 
 ```bash
 cd "CargoWise Foresight"
@@ -76,10 +98,13 @@ dotnet run --project src/CargoWise.Foresight.Api
 
 The API starts at **http://localhost:5248**.
 
-- **Web GUI:** http://localhost:5248 — interactive scenario builder and results viewer
-- **Swagger UI:** http://localhost:5248/swagger — API documentation
+| URL | Description |
+|-----|-------------|
+| http://localhost:5248 | Web GUI |
+| http://localhost:5248/swagger | Swagger API docs |
+| http://localhost:5248/health | Health & status |
 
-Without Ollama running, the engine still works — simulations return full numeric results, and explanations use a template-based fallback (no LLM narrative).
+Without Ollama, simulations still return full numeric results — Cassandra uses a template-based narrative fallback.
 
 ### 2. Run Tests
 
@@ -103,28 +128,70 @@ Invoke-RestMethod -Uri http://localhost:5248/simulations/run -Method Post -Conte
 
 ---
 
-## Web GUI
+## Data Source Configuration
 
-The application includes a built-in web interface at **http://localhost:5248** for non-technical users to run simulations without using the API directly.
+The engine supports two data sources, controlled by the `DataSource` setting in `appsettings.json`:
 
-### Features
+### Mock (default for development)
 
-- **Scenario Builder** — Pick from 3 pre-loaded sample scenarios or configure your own (origin, destination, mode, carrier, hazmat, value, change type, simulation parameters)
-- **One-Click Simulation** — Click "Run Simulation" to execute what-if analysis
-- **Risk Gauge** — Color-coded overall risk score (green/amber/red/critical)
-- **Key Metrics** — ETA median, cost median, SLA breach rate, risks flagged
-- **Interactive Histograms** — ETA and cost distributions with hover tooltips
-- **Risk Cards** — Severity-coded risk flags with probabilities, rationale, and mitigations
-- **Recommendations** — Actionable options with expected deltas (cost/time impact)
-- **Cassandra AI Advisor** — LLM-generated or template-based narrative explanations with visual charts (risk gauge, percentile bars, risk probability chart)
-- **Live Status Indicators** — Header shows API health and Ollama LLM status with model name
-- **Raw JSON** — Full simulation response in a code viewer for developers
+```json
+{ "DataSource": "Mock" }
+```
 
-No build tools, npm, or frameworks required — the GUI is a single self-contained HTML file served from `wwwroot/`.
+Uses hardcoded deterministic priors — no database required. Good for development, demos, and testing.
+
+### ODYSSEY (CargoWise database)
+
+```json
+{
+  "DataSource": "Odyssey",
+  "Odyssey": {
+    "ConnectionString": "Server=YOUR_SERVER;Database=ODYSSEY;Integrated Security=true;TrustServerCertificate=true;Connect Timeout=10"
+  }
+}
+```
+
+Connects to a live CargoWise ODYSSEY database and loads:
+
+**Reference Data (always available):**
+- **Ports** — UN location codes from `RefUNLOCO` (100K+ locations)
+- **Carriers** — Shipping providers from `OrgHeader` (where `OH_IsShippingProvider = 1`)
+- **Countries** — From `RefCountry` (with `RN_IsSanctioned` flag for risk analysis)
+- **Geographic transit estimation** — Haversine distance-based transit time calculation
+
+**Historical Shipment Data (when transactional records exist):**
+- **Carrier delay stats** — Mean delay, stddev, reliability score per carrier/mode from `JobActualTransportRouting`
+- **Route transit stats** — Mean transit time, congestion probability per port-pair from `JobActualTransportRouting`
+- **Customs hold rates** — Hold probability and mean hold duration per country from `CusEntryHeader` + `JobDeclaration`
+- **Cost per shipment** — Average cost by transport mode from `JobCharge` + `JobHeader`
+
+All historical queries require a minimum sample size of 10 records. When no shipment history exists (e.g., fresh ODYSSEY install), the adapter automatically falls back to geographic estimates — the engine always works.
+
+The `/health` endpoint reports the data source status, including whether historical data is available:
+
+```json
+{
+  "dataSource": "Odyssey",
+  "odyssey": {
+    "connected": true,
+    "ports": 106417,
+    "carriers": 137,
+    "countries": 250,
+    "hasShipmentHistory": false,
+    "historicalStats": {
+      "carrierRoutes": 0,
+      "portPairs": 0,
+      "customsCountries": 0
+    }
+  }
+}
+```
 
 ---
 
-## With Ollama (Local LLM)
+## With Ollama (Local LLM — Cassandra AI Advisor)
+
+Ollama powers **Cassandra**, the AI advisor persona that generates narrative explanations of simulation results. Cassandra adapts tone for different audiences (operator, manager, customer) and includes visual confidence graphs.
 
 ### Option A: Run Ollama Directly
 
@@ -155,7 +222,7 @@ Set via `appsettings.json` or environment variables:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Ollama:BaseUrl` | `http://localhost:11434` | Ollama API endpoint |
-| `Ollama:Model` | `phi3:mini` | Model to use for explanations |
+| `Ollama:Model` | `phi3:mini` | Model to use for Cassandra narratives |
 | `Ollama:TimeoutSeconds` | `120` | HTTP timeout |
 | `Ollama:MaxRetries` | `2` | Retry attempts |
 | `Ollama:CircuitBreakerThreshold` | `3` | Failures before circuit opens |
@@ -194,11 +261,7 @@ Load a saved scenario.
 
 ### `GET /health`
 
-Health check endpoint. Returns API status and Ollama LLM status including:
-- Whether Ollama is running
-- The configured model name
-- Available models on the Ollama instance
-- Whether the configured model is ready to use
+Health check endpoint.
 
 ### `GET /metrics`
 
@@ -318,16 +381,12 @@ Prometheus-style metrics snapshot.
 - **P95:** 95th percentile (worst-case planning)
 - **Histogram:** Bucketed frequency distribution for visualization
 
-### Explanation Response
+### Explanation Response (Cassandra)
 
-When Ollama is available and the configured model is installed, explanations are LLM-generated narratives authored by **Cassandra** — the CargoWise Foresight AI advisor persona — tailored to the audience (operator/manager/customer). When unavailable, a structured template fallback is used. The `generatedByLlm` field indicates which mode was used.
+When Ollama is available, **Cassandra** generates LLM-powered narratives tailored to the audience (operator/manager/customer) with visual confidence graphs. When Ollama is unavailable, Cassandra uses a structured template fallback. The `generatedByLlm` field indicates which mode was used.
 
-The GUI header displays real-time Ollama status:
-- **Green** "Ollama: Ready" — LLM explanations active
-- **Amber** "Ollama: Model Missing" — Ollama running but configured model not pulled
-- **Red** "Ollama: Offline" — Ollama not running, template fallback in use
+Both modes are fully data-driven — Cassandra only explains the actual Monte Carlo simulation results (P50/P80/P95 distributions, risks, recommendations). The LLM cannot hallucinate numbers; it receives the real `SimulationResult` as structured data.
 
-The currently selected model is displayed separately in the header as `model: <configuredModel>`.
 ---
 
 ## Safety & Security
@@ -337,9 +396,9 @@ The currently selected model is displayed separately in the header as `model: <c
 - **Prompt injection defense:** System prompts include strict rules; user inputs sanitized before LLM.
 - **Data redaction:** Internal traces/state are stripped before sending to LLM.
 - **Circuit breaker:** Ollama client trips after repeated failures; auto-resets.
-- **Model detection:** Health endpoint verifies the configured model is actually available, preventing misleading "online" status.
-- **Safe mode:** If LLM is down, numeric simulation still works; explanations fall back to templates.
+- **Safe mode:** If LLM is down, numeric simulation still works; Cassandra falls back to templates.
 - **No auto-acting:** LLM cannot call tools, execute code, or mutate anything.
+- **Database read-only:** ODYSSEY adapter only executes SELECT queries — never writes.
 
 ---
 
@@ -370,24 +429,35 @@ Three sample scenarios are included in `samples/scenarios/`:
 ├── Dockerfile
 ├── docker-compose.yml
 ├── src/
-│   ├── CargoWise.Foresight.Api/          # REST API + Web GUI
-│   │   └── wwwroot/index.html            # Single-page GUI
-│   ├── CargoWise.Foresight.Core/         # Domain + simulation
+│   ├── CargoWise.Foresight.Api/          # REST API + web GUI
+│   │   └── wwwroot/index.html            # Self-contained web GUI
+│   ├── CargoWise.Foresight.Core/         # Domain + simulation + Cassandra
 │   ├── CargoWise.Foresight.Llm.Ollama/   # Ollama client
-│   └── CargoWise.Foresight.Data.Mock/    # Mock data
+│   ├── CargoWise.Foresight.Data.Mock/    # Mock data (no DB needed)
+│   └── CargoWise.Foresight.Data.Odyssey/ # ODYSSEY database adapter
 ├── tests/
 │   └── CargoWise.Foresight.Tests/        # All tests
 └── samples/
-    └── scenarios/                        # Sample JSON scenarios
+    └── scenarios/                   # Sample JSON scenarios
 ```
 
 ### Adding a New Data Adapter
 
-Implement `IDataAdapter` and register it in DI:
+Implement `IDataAdapter` and register it in DI. The engine uses conditional registration based on the `DataSource` config:
 
 ```csharp
-builder.Services.AddSingleton<IDataAdapter, MyRealDataAdapter>();
+// In Program.cs
+if (dataSource.Equals("MySource", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IDataAdapter, MyDataAdapter>();
+}
 ```
+
+The adapter must implement four methods returning prior distributions:
+- `GetCarrierPriorAsync` — carrier reliability and delay stats
+- `GetRoutePriorAsync` — transit time and congestion data per port-pair
+- `GetCustomsPriorAsync` — customs hold probability per country
+- `GetDemurragePriorAsync` — free time and daily demurrage rates
 
 ### Adding a New LLM Provider
 
