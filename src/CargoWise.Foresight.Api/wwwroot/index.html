@@ -536,6 +536,10 @@
         <div class="subtitle">Simulation &amp; Decision AI — What-If Engine</div>
     </div>
     <div style="display:flex; gap:16px; align-items:center;">
+        <div style="display:flex; align-items:center; gap:6px;" title="Data Source">
+            <span id="dataDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
+            <span id="dataLabel" style="font-size:12px;opacity:0.8;">🗄️ Data: Checking...</span>
+        </div>
         <div style="display:flex; align-items:center; gap:6px;" title="API Status">
             <span id="healthDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
             <span id="healthLabel" style="font-size:12px;opacity:0.8;">Checking...</span>
@@ -1195,6 +1199,19 @@ async function checkHealth() {
         document.getElementById('healthDot').style.background = '#22c55e';
         document.getElementById('healthLabel').textContent = `${data.service} v${data.version}`;
 
+        // Data source status
+        const ds = data.dataSource || 'Mock';
+        if (ds === 'Odyssey' && data.odyssey) {
+            const od = data.odyssey;
+            document.getElementById('dataDot').style.background = od.connected ? '#22c55e' : '#ef4444';
+            document.getElementById('dataLabel').textContent = od.connected
+                ? `\u{1F5C4}\u{FE0F} ODYSSEY: ${od.ports.toLocaleString()} ports, ${od.carriers} carriers, ${od.countries} countries`
+                : `\u{1F5C4}\u{FE0F} ODYSSEY: Disconnected`;
+        } else {
+            document.getElementById('dataDot').style.background = '#f59e0b';
+            document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} Data: Mock (sample data)`;
+        }
+
         // Ollama status
         if (data.ollama) {
             const o = data.ollama;
@@ -1224,6 +1241,8 @@ async function checkHealth() {
     } catch {
         document.getElementById('healthDot').style.background = '#ef4444';
         document.getElementById('healthLabel').textContent = 'API Offline';
+        document.getElementById('dataDot').style.background = '#6b7280';
+        document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} Data: Unknown';
         document.getElementById('ollamaDot').style.background = '#ef4444';
         document.getElementById('ollamaLabel').textContent = '\u{1F9E0} Ollama: Unknown';
         document.getElementById('ollamaDetail').textContent = '';
