@@ -16,6 +16,7 @@
     <ProjectReference Include="..\CargoWise.Foresight.Llm.Ollama\CargoWise.Foresight.Llm.Ollama.csproj" />
     <ProjectReference Include="..\CargoWise.Foresight.Data.Mock\CargoWise.Foresight.Data.Mock.csproj" />
     <ProjectReference Include="..\CargoWise.Foresight.Data.Odyssey\CargoWise.Foresight.Data.Odyssey.csproj" />
+    <ProjectReference Include="..\CargoWise.Foresight.Data.Softship\CargoWise.Foresight.Data.Softship.csproj" />
   </ItemGroup>
 
 </Project>

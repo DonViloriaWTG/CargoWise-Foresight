@@ -6,6 +6,7 @@ using CargoWise.Foresight.Core.Services;
 using CargoWise.Foresight.Core.Simulation;
 using CargoWise.Foresight.Data.Mock;
 using CargoWise.Foresight.Data.Odyssey;
+using CargoWise.Foresight.Data.Softship;
 using CargoWise.Foresight.Llm.Ollama;
 using Microsoft.Extensions.Options;
 
@@ -40,17 +41,42 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Core services — data source selection
+builder.Services.AddHttpContextAccessor();
 var dataSource = builder.Configuration.GetValue<string>("DataSource") ?? "Mock";
+var softshipConnStr = builder.Configuration.GetSection("Softship")?.GetValue<string>("ConnectionString");
+
+// Primary data adapter (Odyssey or Mock)
 if (dataSource.Equals("Odyssey", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.Configure<OdysseyOptions>(builder.Configuration.GetSection("Odyssey"));
     builder.Services.AddSingleton<OdysseyDataAdapter>();
-    builder.Services.AddSingleton<IDataAdapter>(sp => sp.GetRequiredService<OdysseyDataAdapter>());
 }
 else
 {
-    builder.Services.AddSingleton<IDataAdapter, MockDataAdapter>();
+    builder.Services.AddSingleton<MockDataAdapter>();
 }
+
+// Softship data adapter (optional, for Softship GUI)
+if (!string.IsNullOrWhiteSpace(softshipConnStr))
+{
+    builder.Services.Configure<SoftshipOptions>(builder.Configuration.GetSection("Softship"));
+    builder.Services.AddSingleton<SoftshipDataAdapter>();
+}
+
+// Wire IDataAdapter via proxy that selects the right adapter per request
+builder.Services.AddSingleton<IDataAdapter>(sp =>
+{
+    IDataAdapter primary = dataSource.Equals("Odyssey", StringComparison.OrdinalIgnoreCase)
+        ? sp.GetRequiredService<OdysseyDataAdapter>()
+        : sp.GetRequiredService<MockDataAdapter>();
+
+    IDataAdapter? softship = !string.IsNullOrWhiteSpace(softshipConnStr)
+        ? sp.GetRequiredService<SoftshipDataAdapter>()
+        : null;
+
+    var httpCtx = sp.GetRequiredService<IHttpContextAccessor>();
+    return new DataAdapterProxy(httpCtx, primary, softship);
+});
 builder.Services.AddSingleton<ISimulationEngine, MonteCarloSimulationEngine>();
 builder.Services.AddSingleton<IExplanationService, ExplanationService>();
 
@@ -91,7 +117,7 @@ app.MapGet("/api/carriers", async (IDataAdapter data, CancellationToken ct) =>
 });
 
 // Health endpoint
-app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaOptions> ollamaOpts, IConfiguration config, CancellationToken ct) =>
+app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaOptions> ollamaOpts, IConfiguration config, IServiceProvider sp, CancellationToken ct) =>
 {
     var opts = ollamaOpts.Value;
     var ollamaClient = llm as OllamaLlmClient;
@@ -114,7 +140,8 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
 
     var dataSourceName = config.GetValue<string>("DataSource") ?? "Mock";
     object? dataStatus = null;
-    if (data is OdysseyDataAdapter odyssey)
+    var odyssey = sp.GetService<OdysseyDataAdapter>();
+    if (odyssey is not null)
     {
         var odyStatus = await odyssey.GetStatusAsync(ct);
         dataSourceName = "Odyssey";
@@ -134,6 +161,27 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
         };
     }
 
+    object? softshipStatus = null;
+    var softship = sp.GetService<SoftshipDataAdapter>();
+    if (softship is not null)
+    {
+        var ssStatus = await softship.GetStatusAsync(ct);
+        softshipStatus = new
+        {
+            connected = ssStatus.Connected,
+            ports = ssStatus.PortCount,
+            carriers = ssStatus.CarrierCount,
+            countries = ssStatus.CountryCount,
+            hasFileHistory = ssStatus.HasFileHistory,
+            historicalStats = new
+            {
+                carrierRoutes = ssStatus.CarrierStatCount,
+                portPairs = ssStatus.RouteStatCount,
+                customsCountries = ssStatus.CustomsStatCount
+            }
+        };
+    }
+
     return Results.Ok(new
     {
         status = "healthy",
@@ -142,6 +190,7 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
         timestamp = DateTimeOffset.UtcNow,
         dataSource = dataSourceName,
         odyssey = dataStatus,
+        softship = softshipStatus,
         ollama = new
         {
             available = modelReady,

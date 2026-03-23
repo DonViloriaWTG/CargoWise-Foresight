@@ -778,6 +778,7 @@
 
 <script>
 const API_BASE = '';
+const SS_HEADERS = { 'X-Data-Source': 'Softship' };
 
 // =================== SCENARIOS =====================
 const scenarios = {
@@ -995,7 +996,7 @@ async function runSimulation() {
         lastRequest = request;
         const resp = await fetch(API_BASE + '/simulations/run', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...SS_HEADERS },
             body: JSON.stringify(request)
         });
 
@@ -1213,7 +1214,7 @@ async function generateExplanation() {
     try {
         var resp = await fetch(API_BASE + '/simulations/explain', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...SS_HEADERS },
             body: JSON.stringify({
                 requestId: 'explain-' + Date.now(),
                 simulationResult: lastSimResult,
@@ -1355,13 +1356,25 @@ function buildExplainRiskBars(result) {
 // =================== HEALTH CHECK =====================
 async function checkHealth() {
     try {
-        var resp = await fetch(API_BASE + '/health');
+        var resp = await fetch(API_BASE + '/health', { headers: SS_HEADERS });
         var data = await resp.json();
         document.getElementById('healthDot').style.background = '#2e7d32';
         document.getElementById('healthLabel').textContent = data.service + ' v' + data.version;
 
         var ds = data.dataSource || 'Mock';
-        if (ds === 'Odyssey' && data.odyssey) {
+        // Show Softship database status if available
+        if (data.softship) {
+            var ss = data.softship;
+            document.getElementById('dataDot').style.background = ss.connected ? '#2e7d32' : '#e53935';
+            if (ss.connected) {
+                var hist = ss.hasFileHistory
+                    ? ' | \u{1F4CA} Live history'
+                    : ' | \u{1F4D0} Estimates only';
+                document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} Softship: ' + ss.ports.toLocaleString() + ' ports, ' + ss.carriers + ' carriers' + hist;
+            } else {
+                document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} Softship: Disconnected';
+            }
+        } else if (ds === 'Odyssey' && data.odyssey) {
             var od = data.odyssey;
             document.getElementById('dataDot').style.background = od.connected ? '#2e7d32' : '#e53935';
             if (od.connected) {
@@ -1416,7 +1429,7 @@ var carrierList = [];
 
 async function loadCarriers() {
     try {
-        var resp = await fetch(API_BASE + '/api/carriers');
+        var resp = await fetch(API_BASE + '/api/carriers', { headers: SS_HEADERS });
         carrierList = await resp.json();
         ['carrier', 'newCarrier'].forEach(function(id) {
             var sel = document.getElementById(id);
@@ -1442,7 +1455,7 @@ function setupPortAutocomplete(inputId) {
         if (q.length < 2) { list.style.display = 'none'; return; }
         debounceTimer = setTimeout(async function() {
             try {
-                var resp = await fetch(API_BASE + '/api/ports?q=' + encodeURIComponent(q));
+                var resp = await fetch(API_BASE + '/api/ports?q=' + encodeURIComponent(q), { headers: SS_HEADERS });
                 var ports = await resp.json();
                 if (!ports.length) { list.style.display = 'none'; return; }
                 activeIdx = -1;
