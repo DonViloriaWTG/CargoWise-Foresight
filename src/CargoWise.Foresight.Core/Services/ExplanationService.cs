@@ -90,12 +90,19 @@ public sealed class ExplanationService : IExplanationService
             Your tone should be: {SanitizePromptInput(tone)}.
             
             Provide a clear narrative explanation of the simulation results, including:
-            - What the simulation modeled
-            - Key findings (ETA, cost, risk distributions)
-            - Risk factors identified
-            - Recommended actions
+            - What change was tested and why it matters
+            - The bottom line: is it safe to proceed?
+            - Key numbers: how long will it take, how much will it cost, what could go wrong
+            - What to do next
             
-            Keep the explanation concise and actionable. Use plain language appropriate for the audience.
+            LANGUAGE RULES:
+            - Write like you're explaining to a smart colleague who isn't a statistician.
+            - Say "half the time" instead of "median" or "P50".
+            - Say "in the worst 5% of cases" instead of "95th percentile".
+            - Say "4 out of 5 times" instead of "80th percentile".
+            - Say "chance" instead of "probability".
+            - Use everyday words. Avoid jargon like "distribution", "standard deviation", or "Monte Carlo".
+            - Keep it short — aim for 4-6 sentences, not paragraphs.
             """;
     }
 
@@ -104,7 +111,7 @@ public sealed class ExplanationService : IExplanationService
         var summary = new
         {
             result.Summary.Outcome,
-            result.Summary.OverallRiskScore,
+            OverallRiskScore = $"{result.Summary.OverallRiskScore * 100:F1}%",
             result.Summary.SimulationRuns,
             EtaP50 = result.Distributions.EtaDays?.P50,
             EtaP95 = result.Distributions.EtaDays?.P95,
@@ -152,27 +159,28 @@ public sealed class ExplanationService : IExplanationService
         var result = request.SimulationResult;
         var parts = new List<string>
         {
-            $"Simulation completed with {result.Summary.SimulationRuns} runs (seed: {result.Summary.Seed}).",
-            $"Overall assessment: {result.Summary.Outcome}",
-            $"Overall risk score: {result.Summary.OverallRiskScore:F2}"
+            $"We ran {result.Summary.SimulationRuns:N0} simulations to see what could happen.",
+            $"{result.Summary.Outcome}",
+            $"Overall risk level: {result.Summary.OverallRiskScore * 100:F0}%"
         };
 
         if (result.Distributions.EtaDays != null)
         {
-            parts.Add($"ETA: median {result.Distributions.EtaDays.P50:F1} days, " +
-                       $"80th percentile {result.Distributions.EtaDays.P80:F1} days, " +
-                       $"95th percentile {result.Distributions.EtaDays.P95:F1} days.");
+            parts.Add($"Delivery time: typically around {result.Distributions.EtaDays.P50:F1} days. " +
+                       $"4 out of 5 times it would arrive within {result.Distributions.EtaDays.P80:F1} days. " +
+                       $"In the worst 5% of cases, it could take up to {result.Distributions.EtaDays.P95:F1} days.");
         }
 
         if (result.Distributions.CostUsd != null)
         {
-            parts.Add($"Cost: median ${result.Distributions.CostUsd.P50:F0}, " +
-                       $"95th percentile ${result.Distributions.CostUsd.P95:F0}.");
+            parts.Add($"Cost: typically around ${result.Distributions.CostUsd.P50:F0}. " +
+                       $"In a bad scenario, it could reach ${result.Distributions.CostUsd.P95:F0}.");
         }
 
         foreach (var risk in result.Risks)
         {
-            parts.Add($"Risk [{risk.Severity}]: {risk.Type} - probability {risk.Probability:P1}. {risk.RationaleFacts}");
+            var pct = (risk.Probability * 100).ToString("F0");
+            parts.Add($"{risk.Severity} risk — {FormatRiskType(risk.Type)}: {pct}% chance. {risk.RationaleFacts}");
         }
 
         parts.Add("\n— Cassandra, CargoWise Foresight Advisor");
@@ -193,25 +201,58 @@ public sealed class ExplanationService : IExplanationService
         var drivers = new List<string>();
         if (result.Distributions.EtaDays is { StdDev: > 3 })
             drivers.Add("High transit time variability");
+        if (result.Risks.Any(r => r.Type == "MODE_INFEASIBLE"))
+            drivers.Add("Selected transport mode is not feasible for this route");
+        if (result.Risks.Any(r => r.Type == "MODE_IMPRACTICAL"))
+            drivers.Add("Selected transport mode is impractical for this distance");
         if (result.Risks.Any(r => r.Type == "SLA_BREACH"))
             drivers.Add("SLA breach risk from extended transit");
         if (result.Risks.Any(r => r.Type == "CUSTOMS_HOLD"))
             drivers.Add("Customs hold risk in destination country");
         if (result.Risks.Any(r => r.Type == "PORT_CONGESTION"))
             drivers.Add("Port congestion at transit points");
+        if (result.Risks.Any(r => r.Type == "MARGIN_EROSION"))
+            drivers.Add("Margin erosion risk from cost volatility");
+        if (result.Risks.Any(r => r.Type == "RATE_ABOVE_MARKET"))
+            drivers.Add("Rate above market benchmark for this lane");
+        if (result.Risks.Any(r => r.Type == "RATE_VOLATILITY"))
+            drivers.Add("High rate volatility on this trade lane");
+        if (result.Risks.Any(r => r.Type == "QUOTE_LOSS_RISK"))
+            drivers.Add("Low win probability for this quotation");
+        if (result.Risks.Any(r => r.Type == "PRICE_UNCOMPETITIVE"))
+            drivers.Add("Quoted price uncompetitive vs market");
         if (drivers.Count == 0)
             drivers.Add("No major risk drivers identified");
         return drivers;
+    }
+
+    private static string FormatRiskType(string riskType)
+    {
+        return riskType switch
+        {
+            "MODE_INFEASIBLE" => "Transport mode not feasible for this route",
+            "MODE_IMPRACTICAL" => "Transport mode impractical for this distance",
+            "SLA_BREACH" => "Missing the delivery deadline",
+            "CUSTOMS_HOLD" => "Goods held at customs",
+            "PORT_CONGESTION" => "Port delays from congestion",
+            "COST_OVERRUN" => "Costs going over budget",
+            "MARGIN_EROSION" => "Profit margin shrinking",
+            "RATE_ABOVE_MARKET" => "Rate higher than market average",
+            "RATE_VOLATILITY" => "Rate prices swinging unpredictably",
+            "QUOTE_LOSS_RISK" => "Losing the deal to a competitor",
+            "PRICE_UNCOMPETITIVE" => "Price not competitive enough",
+            _ => riskType.Replace('_', ' ').ToLowerInvariant()
+        };
     }
 
     private static List<string> ExtractAssumptions(SimulationResult result)
     {
         return
         [
-            "Historical carrier reliability data is representative of current performance",
-            "Port congestion patterns follow historical distributions",
-            $"Simulation used {result.Summary.SimulationRuns} Monte Carlo runs for statistical validity",
-            "Cost estimates use current rate structures and do not account for spot rate fluctuations"
+            "We assumed the carrier performs similarly to how it has in the past",
+            "Port congestion patterns are based on recent history",
+            $"We tested {result.Summary.SimulationRuns:N0} different scenarios to get a reliable picture",
+            "Cost figures are based on current rates and don't account for sudden market swings"
         ];
     }
 
@@ -219,10 +260,10 @@ public sealed class ExplanationService : IExplanationService
     {
         return
         [
-            "This is a simulation-based estimate and not a guarantee of outcomes",
-            "Actual results may differ due to unforeseen events (weather, geopolitical, etc.)",
-            "Read-only advisory — no changes have been made to the live system",
-            "Compliance risk assessment is indicative; consult a licensed broker for definitive guidance"
+            "These are estimates based on simulations, not guarantees",
+            "Unexpected events (weather, strikes, policy changes) could change the outcome",
+            "This is advisory only — nothing has been changed in the live system",
+            "For compliance-related decisions, always check with a licensed broker"
         ];
     }
 }

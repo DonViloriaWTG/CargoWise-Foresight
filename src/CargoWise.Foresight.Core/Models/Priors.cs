@@ -39,3 +39,25 @@ public sealed record DemurragePrior
     public double FreeTimeDays { get; init; } = 7.0;
     public double DailyRate { get; init; } = 150.0;
 }
+
+public sealed record RatePrior
+{
+    public required string Origin { get; init; }
+    public required string Destination { get; init; }
+    public required string Mode { get; init; }
+    public double MarketBenchmarkRate { get; init; } = 2500.0;
+    public double RateVolatilityPercent { get; init; } = 0.12;
+    public double SeasonalAdjustment { get; init; } = 1.0;
+    public double FuelSurchargePercent { get; init; } = 0.08;
+}
+
+public sealed record QuotationPrior
+{
+    public required string Origin { get; init; }
+    public required string Destination { get; init; }
+    public required string Mode { get; init; }
+    public double BaseWinProbability { get; init; } = 0.45;
+    public double MarginSensitivity { get; init; } = 2.5;
+    public double AverageCompetitorDiscount { get; init; } = 0.05;
+    public double HistoricalConversionRate { get; init; } = 0.35;
+}

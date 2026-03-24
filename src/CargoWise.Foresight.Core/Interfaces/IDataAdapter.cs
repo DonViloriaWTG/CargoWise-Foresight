@@ -8,6 +8,8 @@ public interface IDataAdapter
     Task<RoutePrior?> GetRoutePriorAsync(string origin, string destination, string mode, CancellationToken ct = default);
     Task<CustomsPrior?> GetCustomsPriorAsync(string country, CancellationToken ct = default);
     Task<DemurragePrior?> GetDemurragePriorAsync(string mode, CancellationToken ct = default);
+    Task<RatePrior?> GetRatePriorAsync(string origin, string destination, string mode, CancellationToken ct = default);
+    Task<QuotationPrior?> GetQuotationPriorAsync(string origin, string destination, string mode, CancellationToken ct = default);
 
     /// <summary>Search ports by code or name prefix. Returns up to <paramref name="limit"/> matches.</summary>
     Task<IReadOnlyList<PortInfo>> SearchPortsAsync(string query, int limit = 20, CancellationToken ct = default);

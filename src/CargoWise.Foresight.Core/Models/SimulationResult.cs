@@ -8,6 +8,7 @@ public sealed record SimulationResult
     public required List<RiskFlag> Risks { get; init; }
     public required List<Recommendation> Recommendations { get; init; }
     public SimulationTraces? Traces { get; init; }
+    public BaselineComparison? Baseline { get; init; }
 }
 
 public sealed record SimulationSummary
@@ -24,6 +25,8 @@ public sealed record DistributionSet
     public Distribution? EtaDays { get; init; }
     public Distribution? CostUsd { get; init; }
     public Distribution? SlaBreachProbability { get; init; }
+    public Distribution? MarginPercent { get; init; }
+    public Distribution? WinProbability { get; init; }
 }
 
 public sealed record Distribution
@@ -64,4 +67,10 @@ public sealed record SimulationTraces
 {
     public List<string> Steps { get; init; } = [];
     public Dictionary<string, object> InternalState { get; init; } = [];
+}
+
+public sealed record BaselineComparison
+{
+    public required DistributionSet Distributions { get; init; }
+    public required Dictionary<string, double> Deltas { get; init; }
 }

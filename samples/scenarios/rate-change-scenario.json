@@ -1,0 +1,60 @@
+{
+  "requestId": "sim-rate-change-001",
+  "seed": 42,
+  "baseline": {
+    "shipment": {
+      "id": "SHP-2026-00198",
+      "origin": "CNSHA",
+      "destination": "USLAX",
+      "incoterm": "FOB",
+      "mode": "Ocean",
+      "carrier": "MAERSK",
+      "plannedEtd": "2026-05-01T00:00:00Z",
+      "plannedEta": "2026-05-15T00:00:00Z",
+      "containerType": "40HC",
+      "hazmat": false,
+      "value": 95000.00
+    },
+    "workflow": {
+      "milestones": [
+        { "name": "BookingConfirmed", "plannedDate": "2026-04-28T00:00:00Z", "completed": true },
+        { "name": "CargoLoaded", "plannedDate": "2026-05-01T00:00:00Z", "completed": false }
+      ],
+      "deadlines": [],
+      "slaTargets": [
+        { "name": "Door-to-Port Delivery", "targetDays": 18, "metric": "TransitTime" }
+      ]
+    },
+    "finance": {
+      "rateLineItems": [
+        { "description": "Ocean Freight", "amount": 2800.00, "chargeCode": "OFR" },
+        { "description": "BAF", "amount": 350.00, "chargeCode": "BAF" },
+        { "description": "THC Origin", "amount": 185.00, "chargeCode": "THC" },
+        { "description": "THC Destination", "amount": 225.00, "chargeCode": "THC" },
+        { "description": "Documentation Fee", "amount": 75.00, "chargeCode": "DOC" }
+      ],
+      "marginTarget": 0.15,
+      "currency": "USD"
+    },
+    "compliance": {
+      "commodities": ["consumer_goods"],
+      "countriesInvolved": ["CN", "US"]
+    }
+  },
+  "changeSet": {
+    "changeType": "RateChange",
+    "parameters": {
+      "rateChangePercent": -12.0,
+      "chargeCode": "OFR",
+      "reason": "Carrier offering promotional rate for Q2 volume commitment"
+    }
+  },
+  "horizonDays": 30,
+  "simulationRuns": 500,
+  "objectives": {
+    "includeCost": true,
+    "includeEta": false,
+    "includeSlaRisk": false,
+    "includeComplianceRisk": false
+  }
+}

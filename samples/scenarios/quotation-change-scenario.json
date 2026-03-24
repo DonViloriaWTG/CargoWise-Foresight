@@ -1,0 +1,59 @@
+{
+  "requestId": "sim-quotation-001",
+  "seed": 42,
+  "baseline": {
+    "shipment": {
+      "id": "SHP-2026-00205",
+      "origin": "CNSHA",
+      "destination": "USLAX",
+      "incoterm": "CIF",
+      "mode": "Ocean",
+      "carrier": "MSC",
+      "plannedEtd": "2026-05-10T00:00:00Z",
+      "plannedEta": "2026-05-24T00:00:00Z",
+      "containerType": "20GP",
+      "hazmat": false,
+      "value": 45000.00
+    },
+    "workflow": {
+      "milestones": [],
+      "deadlines": [
+        { "name": "Quote Validity", "dueDate": "2026-04-30T23:59:59Z", "consequence": "Quote expires, re-pricing required" }
+      ],
+      "slaTargets": [
+        { "name": "Transit Commitment", "targetDays": 16, "metric": "TransitTime" }
+      ]
+    },
+    "finance": {
+      "rateLineItems": [
+        { "description": "Ocean Freight", "amount": 2000.00, "chargeCode": "OFR" },
+        { "description": "BAF", "amount": 280.00, "chargeCode": "BAF" },
+        { "description": "THC Origin", "amount": 150.00, "chargeCode": "THC" },
+        { "description": "THC Destination", "amount": 190.00, "chargeCode": "THC" }
+      ],
+      "marginTarget": 0.18,
+      "currency": "USD"
+    },
+    "compliance": {
+      "commodities": ["textiles"],
+      "countriesInvolved": ["CN", "US"]
+    }
+  },
+  "changeSet": {
+    "changeType": "QuotationChange",
+    "parameters": {
+      "quotedMarginPercent": 20.0,
+      "competitorRate": 2800.00,
+      "serviceLevel": "Standard",
+      "reason": "New customer acquisition - competitive bid against two other forwarders"
+    }
+  },
+  "horizonDays": 30,
+  "simulationRuns": 500,
+  "objectives": {
+    "includeCost": true,
+    "includeEta": false,
+    "includeSlaRisk": false,
+    "includeComplianceRisk": false
+  }
+}

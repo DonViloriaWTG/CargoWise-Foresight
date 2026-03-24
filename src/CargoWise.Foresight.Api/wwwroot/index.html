@@ -556,11 +556,12 @@
             <span id="healthDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
             <span id="healthLabel" style="font-size:12px;opacity:0.8;">Checking...</span>
         </div>
-        <div style="display:flex; align-items:center; gap:6px;" title="Ollama LLM Status" id="ollamaStatus">
+        <div style="display:flex; align-items:center; gap:6px;" title="LLM Status" id="llmStatus">
             <span id="ollamaDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
-            <span id="ollamaLabel" style="font-size:12px;opacity:0.8;">🧠 Ollama: Checking...</span>
+            <span id="ollamaLabel" style="font-size:12px;opacity:0.8;">🧠 LLM: Checking...</span>
             <span id="ollamaDetail" style="font-size:11px;opacity:0.6;"></span>
         </div>
+        <a href="/settings.html" style="font-size:12px;color:rgba(255,255,255,0.8);text-decoration:none;" title="LLM Settings">⚙️ Settings</a>
     </div>
 </header>
 
@@ -578,6 +579,8 @@
                         <option value="carrier-swap">🔄 Carrier Swap (MSC → COSCO)</option>
                         <option value="departure-shift">⏱️ Departure Shift (+3 days, Hazmat)</option>
                         <option value="route-change">🗺️ Route Diversion (Sydney → Rotterdam)</option>
+                        <option value="rate-change">💲 Rate Change (−12% Ocean Freight)</option>
+                        <option value="quotation-change">📋 Quotation (20% margin vs competitor)</option>
                     </select>
                 </div>
 
@@ -638,6 +641,8 @@
                         <option value="RouteChange">Route Change</option>
                         <option value="CustomsFilingChange">Customs Filing Change</option>
                         <option value="PaymentTermChange">Payment Term Change</option>
+                        <option value="RateChange">Rate Change</option>
+                        <option value="QuotationChange">Quotation Change</option>
                     </select>
                 </div>
                 <div id="changeParams">
@@ -654,6 +659,26 @@
                         <div class="autocomplete-wrap">
                             <input id="newDestination" placeholder="e.g. NLRTM" autocomplete="off">
                             <div class="autocomplete-list" id="newDestination-list"></div>
+                        </div>
+                    </div>
+                    <div id="paramRate" style="display:none;">
+                        <div class="form-row">
+                            <label for="rateChangePercent">Rate Change %</label>
+                            <input id="rateChangePercent" type="number" value="-12" step="0.1" placeholder="e.g. -12 for 12% decrease">
+                        </div>
+                        <div class="form-row">
+                            <label for="newRateAmount">Or New Rate ($)</label>
+                            <input id="newRateAmount" type="number" value="" placeholder="Absolute rate (overrides %)">
+                        </div>
+                    </div>
+                    <div id="paramQuotation" style="display:none;">
+                        <div class="form-row">
+                            <label for="quotedMarginPercent">Quoted Margin %</label>
+                            <input id="quotedMarginPercent" type="number" value="20" step="0.5" min="0" max="100">
+                        </div>
+                        <div class="form-row">
+                            <label for="competitorRate">Competitor Rate ($)</label>
+                            <input id="competitorRate" type="number" value="2800" placeholder="Market/competitor price">
                         </div>
                     </div>
                 </div>
@@ -744,6 +769,31 @@ const scenarios = {
             { description: 'Customs Brokerage', amount: 350, chargeCode: 'BRK' },
             { description: 'Biosecurity Levy', amount: 44, chargeCode: 'BIO' }
         ]
+    },
+    'rate-change': {
+        origin: 'CNSHA', destination: 'USLAX', mode: 'Ocean', carrier: 'MAERSK',
+        hazmat: false, value: 95000, changeType: 'RateChange',
+        params: { rateChangePercent: -12 }, simRuns: 500, seed: 42, slaDays: 18,
+        commodities: ['consumer_goods'], countries: ['CN','US'],
+        rateItems: [
+            { description: 'Ocean Freight', amount: 2800, chargeCode: 'OFR' },
+            { description: 'BAF', amount: 350, chargeCode: 'BAF' },
+            { description: 'THC Origin', amount: 185, chargeCode: 'THC' },
+            { description: 'THC Destination', amount: 225, chargeCode: 'THC' },
+            { description: 'Documentation Fee', amount: 75, chargeCode: 'DOC' }
+        ]
+    },
+    'quotation-change': {
+        origin: 'CNSHA', destination: 'USLAX', mode: 'Ocean', carrier: 'MSC',
+        hazmat: false, value: 45000, changeType: 'QuotationChange',
+        params: { quotedMarginPercent: 20, competitorRate: 2800 }, simRuns: 500, seed: 42, slaDays: 16,
+        commodities: ['textiles'], countries: ['CN','US'],
+        rateItems: [
+            { description: 'Ocean Freight', amount: 2000, chargeCode: 'OFR' },
+            { description: 'BAF', amount: 280, chargeCode: 'BAF' },
+            { description: 'THC Origin', amount: 150, chargeCode: 'THC' },
+            { description: 'THC Destination', amount: 190, chargeCode: 'THC' }
+        ]
     }
 };
 
@@ -765,6 +815,14 @@ document.getElementById('scenarioSelect').addEventListener('change', function() 
     if (s.changeType === 'CarrierSwap') setSelectValue('newCarrier', s.params.newCarrier || '');
     if (s.changeType === 'DepartureShift') document.getElementById('shiftDays').value = s.params.shiftDays || 3;
     if (s.changeType === 'RouteChange') document.getElementById('newDestination').value = s.params.newDestination || '';
+    if (s.changeType === 'RateChange') {
+        document.getElementById('rateChangePercent').value = s.params.rateChangePercent ?? -12;
+        document.getElementById('newRateAmount').value = s.params.newRateAmount || '';
+    }
+    if (s.changeType === 'QuotationChange') {
+        document.getElementById('quotedMarginPercent').value = s.params.quotedMarginPercent ?? 20;
+        document.getElementById('competitorRate').value = s.params.competitorRate ?? 2800;
+    }
 });
 
 document.getElementById('changeType').addEventListener('change', updateChangeParams);
@@ -774,6 +832,8 @@ function updateChangeParams() {
     document.getElementById('paramCarrier').style.display = ct === 'CarrierSwap' ? '' : 'none';
     document.getElementById('paramShift').style.display = ct === 'DepartureShift' ? '' : 'none';
     document.getElementById('paramRouteDest').style.display = ct === 'RouteChange' ? '' : 'none';
+    document.getElementById('paramRate').style.display = ct === 'RateChange' ? '' : 'none';
+    document.getElementById('paramQuotation').style.display = ct === 'QuotationChange' ? '' : 'none';
 }
 
 // Set a select value, adding a temporary option if the value doesn't exist in the list
@@ -798,6 +858,16 @@ function buildRequest() {
     if (ct === 'CarrierSwap') params.newCarrier = document.getElementById('newCarrier').value;
     if (ct === 'DepartureShift') params.shiftDays = parseFloat(document.getElementById('shiftDays').value) || 3;
     if (ct === 'RouteChange') params.newDestination = document.getElementById('newDestination').value;
+    if (ct === 'RateChange') {
+        const pct = parseFloat(document.getElementById('rateChangePercent').value);
+        if (!isNaN(pct)) params.rateChangePercent = pct;
+        const abs = parseFloat(document.getElementById('newRateAmount').value);
+        if (!isNaN(abs) && abs > 0) params.newRateAmount = abs;
+    }
+    if (ct === 'QuotationChange') {
+        params.quotedMarginPercent = parseFloat(document.getElementById('quotedMarginPercent').value) || 20;
+        params.competitorRate = parseFloat(document.getElementById('competitorRate').value) || 2800;
+    }
 
     const selScenario = scenarios[document.getElementById('scenarioSelect').value];
     const commodities = selScenario?.commodities || ['general_cargo'];
@@ -910,18 +980,33 @@ function renderResults(result, request) {
                 <div class="metric-label">ETA (median)</div>
                 <div class="metric-value">${result.distributions.etaDays.p50.toFixed(1)}<span style="font-size:14px;font-weight:400;"> days</span></div>
                 <div class="metric-detail">P80: ${result.distributions.etaDays.p80.toFixed(1)}d · P95: ${result.distributions.etaDays.p95.toFixed(1)}d</div>
+                ${fmtDelta(result.baseline?.deltas?.etaDaysP50, 'days', false)}
             </div>` : ''}
             ${result.distributions.costUsd ? `
             <div class="metric-card">
                 <div class="metric-label">Cost (median)</div>
                 <div class="metric-value">$${result.distributions.costUsd.p50.toFixed(0)}</div>
                 <div class="metric-detail">P80: $${result.distributions.costUsd.p80.toFixed(0)} · P95: $${result.distributions.costUsd.p95.toFixed(0)}</div>
+                ${fmtDelta(result.baseline?.deltas?.costUsdP50, '$', false)}
             </div>` : ''}
             ${result.distributions.slaBreachProbability ? `
             <div class="metric-card">
                 <div class="metric-label">SLA Breach Rate</div>
                 <div class="metric-value">${(result.distributions.slaBreachProbability.mean * 100).toFixed(1)}%</div>
                 <div class="metric-detail">of simulations breached SLA</div>
+                ${fmtDelta(result.baseline?.deltas?.slaBreachProb != null ? result.baseline.deltas.slaBreachProb * 100 : null, 'pp', false)}
+            </div>` : ''}
+            ${result.distributions.marginPercent ? `
+            <div class="metric-card">
+                <div class="metric-label">Margin (median)</div>
+                <div class="metric-value">${(result.distributions.marginPercent.p50 * 100).toFixed(1)}%</div>
+                <div class="metric-detail">P80: ${(result.distributions.marginPercent.p80 * 100).toFixed(1)}% · P95: ${(result.distributions.marginPercent.p95 * 100).toFixed(1)}%</div>
+            </div>` : ''}
+            ${result.distributions.winProbability ? `
+            <div class="metric-card">
+                <div class="metric-label">Win Probability</div>
+                <div class="metric-value">${(result.distributions.winProbability.mean * 100).toFixed(1)}%</div>
+                <div class="metric-detail">of simulations won the quote</div>
             </div>` : ''}
             <div class="metric-card">
                 <div class="metric-label">Risks Flagged</div>
@@ -936,6 +1021,7 @@ function renderResults(result, request) {
                 <button class="tab-btn active" onclick="switchTab(event,'distributions')">📊 Distributions</button>
                 <button class="tab-btn" onclick="switchTab(event,'risks')">⚠️ Risks (${result.risks.length})</button>
                 <button class="tab-btn" onclick="switchTab(event,'recommendations')">💡 Recommendations</button>
+                ${result.baseline ? `<button class="tab-btn" onclick="switchTab(event,'baseline')">📈 Baseline</button>` : ''}
                 <button class="tab-btn" onclick="switchTab(event,'explanation')">📝 Explanation</button>
                 <button class="tab-btn" onclick="switchTab(event,'raw')">{ } Raw JSON</button>
             </div>
@@ -952,13 +1038,18 @@ function renderResults(result, request) {
                 ${renderRecommendations(result.recommendations)}
             </div>
 
+            ${result.baseline ? `
+            <div class="tab-panel" id="tab-baseline">
+                ${renderBaselineComparison(result)}
+            </div>` : ''}
+
             <div class="tab-panel" id="tab-explanation">
                 <div id="explanationContent">
                     <div style="text-align:center;padding:20px;">
                         <button class="btn btn-outline" onclick="generateExplanation()" id="explainBtn">
                             📝 Generate Explanation
                         </button>
-                        <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">Uses LLM if Ollama is running, otherwise generates a template-based summary.</p>
+                        <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">Uses the selected LLM provider, otherwise generates a template-based summary.</p>
                     </div>
                 </div>
             </div>
@@ -978,6 +1069,19 @@ function switchTab(event, tabId) {
     document.getElementById('tab-' + tabId).classList.add('active');
 }
 
+function fmtDelta(val, unit, lowerIsBetter) {
+    if (val == null) return '';
+    if (val === 0) return `<div style="font-size:12px;color:#6b7280;font-weight:500;margin-top:4px;">— no change vs current</div>`;
+    const sign = val > 0 ? '+' : '';
+    const color = (lowerIsBetter ? val < 0 : val > 0) ? '#16a34a' : '#dc2626';
+    const arrow = val > 0 ? '▲' : '▼';
+    let display;
+    if (unit === '$') display = `${sign}$${Math.abs(val).toFixed(0)}`;
+    else if (unit === 'pp') display = `${sign}${val.toFixed(1)}pp`;
+    else display = `${sign}${val.toFixed(1)} ${unit}`;
+    return `<div style="font-size:12px;color:${color};font-weight:600;margin-top:4px;">${arrow} ${display} vs current</div>`;
+}
+
 function riskLevel(score) {
     if (score < 0.2) return { level: 'low', label: 'Low Risk' };
     if (score < 0.5) return { level: 'moderate', label: 'Moderate Risk' };
@@ -985,37 +1089,97 @@ function riskLevel(score) {
     return { level: 'critical', label: 'Critical Risk' };
 }
 
+// =================== BASELINE COMPARISON =====================
+function renderBaselineComparison(result) {
+    const b = result.baseline;
+    if (!b) return '';
+    const d = b.deltas || {};
+    const bd = b.distributions || {};
+    const cd = result.distributions || {};
+
+    function row(label, changedVal, baselineVal, delta, unit, fmt) {
+        const cv = fmt(changedVal);
+        const bv = fmt(baselineVal);
+        let deltaHtml = '<span style="color:#6b7280;">—</span>';
+        if (delta != null && delta !== 0) {
+            const sign = delta > 0 ? '+' : '';
+            const color = delta > 0 ? '#dc2626' : '#16a34a';
+            const arrow = delta > 0 ? '▲' : '▼';
+            deltaHtml = `<span style="color:${color};font-weight:600;">${arrow} ${sign}${fmt(Math.abs(delta))} ${unit}</span>`;
+        }
+        return `<tr><td style="font-weight:500;">${label}</td><td>${bv}</td><td>${cv}</td><td>${deltaHtml}</td></tr>`;
+    }
+
+    const fDays = v => v != null ? v.toFixed(1) : '—';
+    const fCost = v => v != null ? '$' + v.toFixed(0) : '—';
+    const fPct = v => v != null ? (v * 100).toFixed(1) + '%' : '—';
+
+    let rows = '';
+    rows += row('ETA P50', cd.etaDays?.p50, bd.etaDays?.p50, d.etaDaysP50, 'days', fDays);
+    rows += row('ETA P95', cd.etaDays?.p95, bd.etaDays?.p95, d.etaDaysP95, 'days', fDays);
+    rows += row('Cost P50', cd.costUsd?.p50, bd.costUsd?.p50, d.costUsdP50, '', fCost);
+    rows += row('Cost P95', cd.costUsd?.p95, bd.costUsd?.p95, d.costUsdP95, '', fCost);
+    rows += row('SLA Breach', cd.slaBreachProbability?.mean, bd.slaBreachProbability?.mean, d.slaBreachProb, 'pp', fPct);
+
+    return `
+        <div style="margin-bottom:12px;">
+            <p style="font-size:13px;color:var(--gray-500);margin:0 0 12px 0;">
+                Comparison of the proposed change against the current (baseline) scenario using the same ${result.summary.simulationRuns.toLocaleString()} Monte Carlo runs.
+            </p>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--gray-200);text-align:left;">
+                        <th style="padding:8px 12px;">Metric</th>
+                        <th style="padding:8px 12px;">Current</th>
+                        <th style="padding:8px 12px;">Proposed</th>
+                        <th style="padding:8px 12px;">Delta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </div>`;
+}
+
 // =================== DISTRIBUTIONS =====================
 function renderDistributions(dist) {
     let html = '';
     if (dist.etaDays) html += renderDistSection('ETA (Transit Days)', dist.etaDays, 'days');
     if (dist.costUsd) html += renderDistSection('Cost (USD)', dist.costUsd, 'USD');
+    if (dist.marginPercent) html += renderDistSection('Margin', dist.marginPercent, '%');
+    if (dist.winProbability) html += renderDistSection('Win Probability', dist.winProbability, '%');
     return html || '<p style="color:var(--gray-500);">No distribution data available.</p>';
 }
 
 function renderDistSection(title, d, unit) {
     const maxCount = Math.max(...d.histogram.map(b => b.count), 1);
+    const isPct = unit === '%';
     const bars = d.histogram.map(b => {
         const pct = (b.count / maxCount) * 100;
         const label = unit === 'USD'
             ? `$${b.lowerBound.toFixed(0)}–$${b.upperBound.toFixed(0)}: ${b.count}`
+            : isPct
+            ? `${(b.lowerBound*100).toFixed(1)}%–${(b.upperBound*100).toFixed(1)}%: ${b.count}`
             : `${b.lowerBound.toFixed(1)}–${b.upperBound.toFixed(1)} ${unit}: ${b.count}`;
         return `<div class="bar" style="height:${Math.max(pct, 3)}%"><div class="tooltip">${label}</div></div>`;
     }).join('');
 
     const lo = d.histogram[0]?.lowerBound ?? 0;
     const hi = d.histogram[d.histogram.length-1]?.upperBound ?? 0;
-    const loLabel = unit === 'USD' ? '$' + lo.toFixed(0) : lo.toFixed(1);
-    const hiLabel = unit === 'USD' ? '$' + hi.toFixed(0) : hi.toFixed(1);
+    const loLabel = unit === 'USD' ? '$' + lo.toFixed(0) : isPct ? (lo*100).toFixed(1)+'%' : lo.toFixed(1);
+    const hiLabel = unit === 'USD' ? '$' + hi.toFixed(0) : isPct ? (hi*100).toFixed(1)+'%' : hi.toFixed(1);
+
+    const fmtVal = (v) => unit === 'USD' ? '$'+v.toFixed(0) : isPct ? (v*100).toFixed(1)+'%' : v.toFixed(1);
 
     return `
         <h3 style="margin-top:16px;">${title}</h3>
         <div style="display:flex;gap:24px;font-size:13px;color:var(--gray-500);margin-bottom:4px;">
-            <span>Mean: <strong>${unit==='USD'?'$':''}${d.mean.toFixed(unit==='USD'?0:1)}</strong></span>
-            <span>Std Dev: <strong>${d.stdDev.toFixed(unit==='USD'?0:2)}</strong></span>
-            <span>P50: <strong>${unit==='USD'?'$':''}${d.p50.toFixed(unit==='USD'?0:1)}</strong></span>
-            <span>P80: <strong>${unit==='USD'?'$':''}${d.p80.toFixed(unit==='USD'?0:1)}</strong></span>
-            <span>P95: <strong>${unit==='USD'?'$':''}${d.p95.toFixed(unit==='USD'?0:1)}</strong></span>
+            <span>Mean: <strong>${fmtVal(d.mean)}</strong></span>
+            <span>Std Dev: <strong>${isPct ? (d.stdDev*100).toFixed(1)+'%' : d.stdDev.toFixed(unit==='USD'?0:2)}</strong></span>
+            <span>P50: <strong>${fmtVal(d.p50)}</strong></span>
+            <span>P80: <strong>${fmtVal(d.p80)}</strong></span>
+            <span>P95: <strong>${fmtVal(d.p95)}</strong></span>
         </div>
         <div class="histogram">${bars}</div>
         <div class="hist-labels"><span>${loLabel}</span><span>${hiLabel}</span></div>
@@ -1268,30 +1432,34 @@ async function checkHealth() {
             document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} Data: Mock (sample data)`;
         }
 
-        // Ollama status
-        if (data.ollama) {
-            const o = data.ollama;
+        // LLM status (supports Ollama and GitHub Models)
+        const llmData = data.llm;
+        if (llmData) {
+            const providerName = llmData.activeProvider || 'LLM';
             const detail = document.getElementById('ollamaDetail');
 
-            if (o.status === 'ready') {
+            // Find the active provider info
+            const activeInfo = (llmData.providers || []).find(p => p.name === providerName);
+            const isReady = activeInfo && (activeInfo.running || activeInfo.configured) &&
+                (activeInfo.models || []).length > 0;
+
+            if (isReady) {
                 document.getElementById('ollamaDot').style.background = '#22c55e';
-                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} Ollama: Ready`;
-                detail.textContent = `model: ${o.configuredModel}`;
+                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} ${providerName}: Ready`;
+                detail.textContent = `model: ${llmData.activeModel}`;
                 detail.style.opacity = '0.7';
                 detail.style.color = '';
-                document.getElementById('ollamaLabel').title = `Model "${o.configuredModel}" is loaded \u2014 explanations will use AI`;
-            } else if (o.status === 'model_missing') {
-                document.getElementById('ollamaDot').style.background = '#f59e0b';
-                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} Ollama: Model Missing`;
-                detail.textContent = `need "${o.configuredModel}", have: ${o.availableModels.join(', ') || 'none'}`;
-                detail.style.opacity = '0.8';
-                detail.style.color = '#fbbf24';
-                document.getElementById('ollamaLabel').title = `Ollama is running but model "${o.configuredModel}" is not installed.\nAvailable: ${o.availableModels.join(', ') || 'none'}\nRun: ollama pull ${o.configuredModel}`;
-            } else {
+                document.getElementById('ollamaLabel').title = `Using ${providerName} with model "${llmData.activeModel}"`;
+            } else if (providerName === 'Ollama' && activeInfo && !activeInfo.running) {
                 document.getElementById('ollamaDot').style.background = '#ef4444';
-                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} Ollama: Offline`;
+                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} ${providerName}: Offline`;
                 detail.textContent = '';
-                document.getElementById('ollamaLabel').title = 'Ollama is not running \u2014 explanations will use template fallback';
+                document.getElementById('ollamaLabel').title = `${providerName} is not running \u2014 explanations will use template fallback`;
+            } else {
+                document.getElementById('ollamaDot').style.background = '#f59e0b';
+                document.getElementById('ollamaLabel').textContent = `\u{1F9E0} ${providerName}: Not Configured`;
+                detail.textContent = '';
+                document.getElementById('ollamaLabel').title = `${providerName} not available \u2014 explanations will use template fallback`;
             }
         }
     } catch {
@@ -1300,7 +1468,7 @@ async function checkHealth() {
         document.getElementById('dataDot').style.background = '#6b7280';
         document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} Data: Unknown';
         document.getElementById('ollamaDot').style.background = '#ef4444';
-        document.getElementById('ollamaLabel').textContent = '\u{1F9E0} Ollama: Unknown';
+        document.getElementById('ollamaLabel').textContent = '\u{1F9E0} LLM: Unknown';
         document.getElementById('ollamaDetail').textContent = '';
     }
 }

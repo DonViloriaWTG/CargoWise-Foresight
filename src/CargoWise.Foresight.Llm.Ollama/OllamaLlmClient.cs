@@ -14,10 +14,15 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
     private readonly OllamaOptions _options;
     private readonly ILogger<OllamaLlmClient> _logger;
 
+    // Runtime model override (set by router for model switching)
+    public volatile string? ModelOverride;
+
     // Circuit breaker state
     private int _consecutiveFailures;
     private DateTimeOffset _circuitOpenUntil = DateTimeOffset.MinValue;
     private readonly object _cbLock = new();
+
+    private string ActiveModel => ModelOverride ?? _options.Model;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -51,11 +56,12 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
             var tags = await response.Content.ReadFromJsonAsync<OllamaTagsResponse>(JsonOpts, ct);
             if (tags?.Models is null || tags.Models.Length == 0) return false;
 
-            // Verify the configured model is actually available
+            // Verify the active model is actually available
+            var model = ActiveModel;
             return tags.Models.Any(m =>
                 m.Name != null &&
-                (m.Name.Equals(_options.Model, StringComparison.OrdinalIgnoreCase) ||
-                 m.Name.StartsWith(_options.Model + ":", StringComparison.OrdinalIgnoreCase)));
+                (m.Name.Equals(model, StringComparison.OrdinalIgnoreCase) ||
+                 m.Name.StartsWith(model + ":", StringComparison.OrdinalIgnoreCase)));
         }
         catch
         {
@@ -89,9 +95,10 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
             throw new InvalidOperationException("Circuit breaker is open. Ollama calls are temporarily disabled.");
         }
 
+        var model = ActiveModel;
         var request = new OllamaGenerateRequest
         {
-            Model = _options.Model,
+            Model = model,
             System = systemPrompt,
             Prompt = userPrompt,
             Stream = false
@@ -101,7 +108,7 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         _logger.LogInformation("Sending generate request to Ollama model={Model}, promptLength={Len}",
-            _options.Model, userPrompt.Length);
+            model, userPrompt.Length);
 
         int attempt = 0;
         while (true)
@@ -116,7 +123,7 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
                 RecordSuccess();
 
                 _logger.LogInformation("Ollama response received, model={Model}, length={Len}",
-                    _options.Model, result?.Response?.Length ?? 0);
+                    model, result?.Response?.Length ?? 0);
 
                 return result?.Response ?? string.Empty;
             }

@@ -16,5 +16,7 @@ public enum ChangeType
     RouteChange,
     DepartureShift,
     CustomsFilingChange,
-    PaymentTermChange
+    PaymentTermChange,
+    RateChange,
+    QuotationChange
 }

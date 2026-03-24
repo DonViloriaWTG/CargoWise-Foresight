@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>CargoWise.Foresight.Api</RootNamespace>
+    <UserSecretsId>b721adc1-faad-411e-a32b-6bf63bcf2573</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +17,7 @@
     <ProjectReference Include="..\CargoWise.Foresight.Llm.Ollama\CargoWise.Foresight.Llm.Ollama.csproj" />
     <ProjectReference Include="..\CargoWise.Foresight.Data.Mock\CargoWise.Foresight.Data.Mock.csproj" />
     <ProjectReference Include="..\CargoWise.Foresight.Data.Odyssey\CargoWise.Foresight.Data.Odyssey.csproj" />
+    <ProjectReference Include="..\CargoWise.Foresight.Llm.GitHubModels\CargoWise.Foresight.Llm.GitHubModels.csproj" />
   </ItemGroup>
 
 </Project>

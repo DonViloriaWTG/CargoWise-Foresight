@@ -136,6 +136,74 @@ public sealed class MockDataAdapter : IDataAdapter
         ["Rail"] = new DemurragePrior { Mode = "Rail", FreeTimeDays = 5, DailyRate = 120 }
     };
 
+    private static readonly List<RatePrior> RatePriors =
+    [
+        new RatePrior
+        {
+            Origin = "CNSHA", Destination = "USLAX", Mode = "Ocean",
+            MarketBenchmarkRate = 2600, RateVolatilityPercent = 0.15,
+            SeasonalAdjustment = 1.1, FuelSurchargePercent = 0.08
+        },
+        new RatePrior
+        {
+            Origin = "CNSHA", Destination = "NLRTM", Mode = "Ocean",
+            MarketBenchmarkRate = 3200, RateVolatilityPercent = 0.12,
+            SeasonalAdjustment = 1.0, FuelSurchargePercent = 0.09
+        },
+        new RatePrior
+        {
+            Origin = "CNSHA", Destination = "AUSYD", Mode = "Ocean",
+            MarketBenchmarkRate = 2100, RateVolatilityPercent = 0.10,
+            SeasonalAdjustment = 0.95, FuelSurchargePercent = 0.07
+        },
+        new RatePrior
+        {
+            Origin = "DEHAM", Destination = "USNYC", Mode = "Ocean",
+            MarketBenchmarkRate = 2400, RateVolatilityPercent = 0.14,
+            SeasonalAdjustment = 1.05, FuelSurchargePercent = 0.08
+        },
+        new RatePrior
+        {
+            Origin = "CNSHA", Destination = "USLAX", Mode = "Air",
+            MarketBenchmarkRate = 5800, RateVolatilityPercent = 0.18,
+            SeasonalAdjustment = 1.15, FuelSurchargePercent = 0.12
+        }
+    ];
+
+    private static readonly List<QuotationPrior> QuotationPriors =
+    [
+        new QuotationPrior
+        {
+            Origin = "CNSHA", Destination = "USLAX", Mode = "Ocean",
+            BaseWinProbability = 0.45, MarginSensitivity = 2.5,
+            AverageCompetitorDiscount = 0.05, HistoricalConversionRate = 0.35
+        },
+        new QuotationPrior
+        {
+            Origin = "CNSHA", Destination = "NLRTM", Mode = "Ocean",
+            BaseWinProbability = 0.40, MarginSensitivity = 3.0,
+            AverageCompetitorDiscount = 0.07, HistoricalConversionRate = 0.30
+        },
+        new QuotationPrior
+        {
+            Origin = "CNSHA", Destination = "AUSYD", Mode = "Ocean",
+            BaseWinProbability = 0.50, MarginSensitivity = 2.0,
+            AverageCompetitorDiscount = 0.04, HistoricalConversionRate = 0.40
+        },
+        new QuotationPrior
+        {
+            Origin = "DEHAM", Destination = "USNYC", Mode = "Ocean",
+            BaseWinProbability = 0.42, MarginSensitivity = 2.8,
+            AverageCompetitorDiscount = 0.06, HistoricalConversionRate = 0.33
+        },
+        new QuotationPrior
+        {
+            Origin = "CNSHA", Destination = "USLAX", Mode = "Air",
+            BaseWinProbability = 0.35, MarginSensitivity = 3.5,
+            AverageCompetitorDiscount = 0.08, HistoricalConversionRate = 0.25
+        }
+    ];
+
     public Task<CarrierPrior?> GetCarrierPriorAsync(string carrierCode, string mode, CancellationToken ct = default)
     {
         Carriers.TryGetValue(carrierCode, out var prior);
@@ -160,6 +228,24 @@ public sealed class MockDataAdapter : IDataAdapter
     public Task<DemurragePrior?> GetDemurragePriorAsync(string mode, CancellationToken ct = default)
     {
         Demurrage.TryGetValue(mode, out var prior);
+        return Task.FromResult(prior);
+    }
+
+    public Task<RatePrior?> GetRatePriorAsync(string origin, string destination, string mode, CancellationToken ct = default)
+    {
+        var prior = RatePriors.FirstOrDefault(r =>
+            r.Origin.Equals(origin, StringComparison.OrdinalIgnoreCase) &&
+            r.Destination.Equals(destination, StringComparison.OrdinalIgnoreCase) &&
+            r.Mode.Equals(mode, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(prior);
+    }
+
+    public Task<QuotationPrior?> GetQuotationPriorAsync(string origin, string destination, string mode, CancellationToken ct = default)
+    {
+        var prior = QuotationPriors.FirstOrDefault(q =>
+            q.Origin.Equals(origin, StringComparison.OrdinalIgnoreCase) &&
+            q.Destination.Equals(destination, StringComparison.OrdinalIgnoreCase) &&
+            q.Mode.Equals(mode, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(prior);
     }
 

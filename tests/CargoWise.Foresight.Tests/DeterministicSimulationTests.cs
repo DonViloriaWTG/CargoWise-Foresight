@@ -203,4 +203,188 @@ public class DeterministicSimulationTests
         },
         SimulationRuns = 500
     };
+
+    // ── Rate Change tests ──
+
+    [Fact]
+    public async Task RateChange_ProducesCostAndMarginDistributions()
+    {
+        var request = CreateRateChangeRequest(seed: 42);
+        var result = await _engine.RunAsync(request);
+
+        result.RequestId.Should().Be(request.RequestId);
+        result.Summary.Should().NotBeNull();
+        result.Summary.OverallRiskScore.Should().BeInRange(0.0, 1.0);
+        result.Distributions.CostUsd.Should().NotBeNull();
+        result.Distributions.MarginPercent.Should().NotBeNull();
+        result.Distributions.EtaDays.Should().BeNull("rate change does not simulate transit time");
+    }
+
+    [Fact]
+    public async Task RateChange_SameSeed_Deterministic()
+    {
+        var request = CreateRateChangeRequest(seed: 42);
+
+        var result1 = await _engine.RunAsync(request);
+        var result2 = await _engine.RunAsync(request);
+
+        result1.Distributions.CostUsd!.P50.Should().Be(result2.Distributions.CostUsd!.P50);
+        result1.Distributions.MarginPercent!.P50.Should().Be(result2.Distributions.MarginPercent!.P50);
+        result1.Summary.OverallRiskScore.Should().Be(result2.Summary.OverallRiskScore);
+    }
+
+    [Fact]
+    public async Task RateChange_LargeIncrease_HigherRisk()
+    {
+        var smallChange = CreateRateChangeRequest(seed: 42, rateChangePercent: -5.0);
+        var largeChange = CreateRateChangeRequest(seed: 42, rateChangePercent: 30.0);
+
+        var smallResult = await _engine.RunAsync(smallChange);
+        var largeResult = await _engine.RunAsync(largeChange);
+
+        largeResult.Summary.OverallRiskScore.Should()
+            .BeGreaterThanOrEqualTo(smallResult.Summary.OverallRiskScore,
+                "a large rate increase should produce higher risk than a small decrease");
+    }
+
+    [Fact]
+    public async Task RateChange_WithNewRateAmount_UsesAbsoluteRate()
+    {
+        var request = new SimulationRequest
+        {
+            RequestId = "rate-absolute-test",
+            Seed = 42,
+            Baseline = CreateBaselineSnapshot(),
+            ChangeSet = new ChangeSet
+            {
+                ChangeType = ChangeType.RateChange,
+                Parameters = new Dictionary<string, object> { ["newRateAmount"] = 4000.0 }
+            },
+            SimulationRuns = 100
+        };
+
+        var result = await _engine.RunAsync(request);
+
+        result.Distributions.CostUsd.Should().NotBeNull();
+        result.Distributions.CostUsd!.P50.Should().BeGreaterThan(3500, "cost should reflect the $4000 absolute rate");
+    }
+
+    // ── Quotation Change tests ──
+
+    [Fact]
+    public async Task QuotationChange_ProducesCostMarginAndWinDistributions()
+    {
+        var request = CreateQuotationChangeRequest(seed: 42);
+        var result = await _engine.RunAsync(request);
+
+        result.RequestId.Should().Be(request.RequestId);
+        result.Summary.Should().NotBeNull();
+        result.Summary.OverallRiskScore.Should().BeInRange(0.0, 1.0);
+        result.Distributions.CostUsd.Should().NotBeNull();
+        result.Distributions.MarginPercent.Should().NotBeNull();
+        result.Distributions.WinProbability.Should().NotBeNull();
+        result.Distributions.EtaDays.Should().BeNull("quotation change does not simulate transit time");
+    }
+
+    [Fact]
+    public async Task QuotationChange_SameSeed_Deterministic()
+    {
+        var request = CreateQuotationChangeRequest(seed: 42);
+
+        var result1 = await _engine.RunAsync(request);
+        var result2 = await _engine.RunAsync(request);
+
+        result1.Distributions.WinProbability!.P50.Should().Be(result2.Distributions.WinProbability!.P50);
+        result1.Distributions.MarginPercent!.P50.Should().Be(result2.Distributions.MarginPercent!.P50);
+        result1.Summary.OverallRiskScore.Should().Be(result2.Summary.OverallRiskScore);
+    }
+
+    [Fact]
+    public async Task QuotationChange_HighMargin_LowerWinProbability()
+    {
+        var lowMargin = CreateQuotationChangeRequest(seed: 42, quotedMarginPercent: 5.0);
+        var highMargin = CreateQuotationChangeRequest(seed: 42, quotedMarginPercent: 40.0);
+
+        var lowResult = await _engine.RunAsync(lowMargin);
+        var highResult = await _engine.RunAsync(highMargin);
+
+        highResult.Distributions.WinProbability!.Mean.Should()
+            .BeLessThanOrEqualTo(lowResult.Distributions.WinProbability!.Mean,
+                "higher margin means higher price, which should reduce win probability");
+    }
+
+    [Fact]
+    public async Task QuotationChange_HasRecommendations()
+    {
+        var request = CreateQuotationChangeRequest(seed: 42);
+        var result = await _engine.RunAsync(request);
+
+        result.Recommendations.Should().NotBeEmpty();
+        result.Recommendations.Should().Contain(r => r.Option == "ValueAddedQuote");
+    }
+
+    // ── Helpers ──
+
+    private static BaselineSnapshot CreateBaselineSnapshot() => new()
+    {
+        Shipment = new ShipmentInfo
+        {
+            Id = "SHP-TEST-001",
+            Origin = "CNSHA",
+            Destination = "USLAX",
+            Mode = "Ocean",
+            Carrier = "MSC",
+            Hazmat = false,
+            Value = 100000m
+        },
+        Workflow = new WorkflowInfo
+        {
+            SlaTargets = [new SlaTarget { Name = "Delivery", TargetDays = 18 }]
+        },
+        Finance = new FinanceInfo
+        {
+            RateLineItems =
+            [
+                new RateLineItem { Description = "Ocean Freight", Amount = 2800 },
+                new RateLineItem { Description = "BAF", Amount = 350 }
+            ],
+            MarginTarget = 0.15m,
+            Currency = "USD"
+        },
+        Compliance = new ComplianceInfo
+        {
+            Commodities = ["electronics"],
+            CountriesInvolved = ["CN", "US"]
+        }
+    };
+
+    private static SimulationRequest CreateRateChangeRequest(int seed, double rateChangePercent = -12.0) => new()
+    {
+        RequestId = $"rate-test-{seed}",
+        Seed = seed,
+        Baseline = CreateBaselineSnapshot(),
+        ChangeSet = new ChangeSet
+        {
+            ChangeType = ChangeType.RateChange,
+            Parameters = new Dictionary<string, object> { ["rateChangePercent"] = rateChangePercent }
+        },
+        SimulationRuns = 500
+    };
+
+    private static SimulationRequest CreateQuotationChangeRequest(int seed, double quotedMarginPercent = 20.0) => new()
+    {
+        RequestId = $"quote-test-{seed}",
+        Seed = seed,
+        Baseline = CreateBaselineSnapshot(),
+        ChangeSet = new ChangeSet
+        {
+            ChangeType = ChangeType.QuotationChange,
+            Parameters = new Dictionary<string, object>
+            {
+                ["quotedMarginPercent"] = quotedMarginPercent,
+                ["competitorRate"] = 2800.0
+            }
+        },
+        SimulationRuns = 500
+    };
 }

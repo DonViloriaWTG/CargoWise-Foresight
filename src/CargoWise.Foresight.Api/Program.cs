@@ -1,12 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CargoWise.Foresight.Api.Middleware;
+using CargoWise.Foresight.Api.Services;
 using CargoWise.Foresight.Core.Interfaces;
 using CargoWise.Foresight.Core.Services;
 using CargoWise.Foresight.Core.Simulation;
 using CargoWise.Foresight.Data.Mock;
 using CargoWise.Foresight.Data.Odyssey;
 using CargoWise.Foresight.Llm.Ollama;
+using CargoWise.Foresight.Llm.GitHubModels;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,9 +56,23 @@ else
 builder.Services.AddSingleton<ISimulationEngine, MonteCarloSimulationEngine>();
 builder.Services.AddSingleton<IExplanationService, ExplanationService>();
 
-// Ollama LLM
+// LLM providers — register both, route via LlmClientRouter
 builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
-builder.Services.AddSingleton<ILlmClient, OllamaLlmClient>();
+builder.Services.AddSingleton<OllamaLlmClient>();
+builder.Services.Configure<GitHubModelsOptions>(builder.Configuration.GetSection("GitHubModels"));
+builder.Services.AddSingleton<GitHubModelsLlmClient>();
+
+var llmProvider = builder.Configuration.GetValue<string>("LlmProvider") ?? "Ollama";
+var llmModel = llmProvider.Equals("GitHubModels", StringComparison.OrdinalIgnoreCase)
+    ? builder.Configuration.GetValue<string>("GitHubModels:Model") ?? "gpt-4o"
+    : builder.Configuration.GetValue<string>("Ollama:Model") ?? "phi3:mini";
+builder.Services.AddSingleton(new LlmProviderSettings(llmProvider, llmModel));
+builder.Services.AddSingleton<LlmClientRouter>(sp => new LlmClientRouter(
+    sp.GetRequiredService<LlmProviderSettings>(),
+    sp.GetRequiredService<OllamaLlmClient>(),
+    sp.GetService<GitHubModelsLlmClient>(),
+    sp.GetRequiredService<ILogger<LlmClientRouter>>()));
+builder.Services.AddSingleton<ILlmClient>(sp => sp.GetRequiredService<LlmClientRouter>());
 
 // Observability
 builder.Services.AddSingleton<MetricsCollector>();
@@ -91,27 +107,8 @@ app.MapGet("/api/carriers", async (IDataAdapter data, CancellationToken ct) =>
 });
 
 // Health endpoint
-app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaOptions> ollamaOpts, IConfiguration config, CancellationToken ct) =>
+app.MapGet("/health", async (LlmClientRouter router, LlmProviderSettings llmSettings, IDataAdapter data, IConfiguration config, CancellationToken ct) =>
 {
-    var opts = ollamaOpts.Value;
-    var ollamaClient = llm as OllamaLlmClient;
-    var running = false;
-    var models = Array.Empty<string>();
-    var modelReady = false;
-
-    if (ollamaClient is not null)
-    {
-        (running, models) = await ollamaClient.GetStatusAsync(ct);
-        modelReady = models.Any(m =>
-            m.Equals(opts.Model, StringComparison.OrdinalIgnoreCase) ||
-            m.StartsWith(opts.Model + ":", StringComparison.OrdinalIgnoreCase));
-    }
-
-    string status;
-    if (!running) status = "offline";
-    else if (!modelReady) status = "model_missing";
-    else status = "ready";
-
     var dataSourceName = config.GetValue<string>("DataSource") ?? "Mock";
     object? dataStatus = null;
     if (data is OdysseyDataAdapter odyssey)
@@ -134,6 +131,13 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
         };
     }
 
+    // LLM provider status
+    var (activeProvider, activeModel) = llmSettings.Current;
+
+    var (ollamaRunning, ollamaModels) = await router.Ollama.GetStatusAsync(ct);
+
+    var ghConfigured = router.GitHubModels?.HasToken ?? false;
+
     return Results.Ok(new
     {
         status = "healthy",
@@ -142,16 +146,77 @@ app.MapGet("/health", async (ILlmClient llm, IDataAdapter data, IOptions<OllamaO
         timestamp = DateTimeOffset.UtcNow,
         dataSource = dataSourceName,
         odyssey = dataStatus,
-        ollama = new
+        llm = new
         {
-            available = modelReady,
-            running,
-            status,
-            configuredModel = opts.Model,
-            availableModels = models
+            activeProvider,
+            activeModel,
+            providers = new object[]
+            {
+                new
+                {
+                    name = "Ollama",
+                    running = ollamaRunning,
+                    models = ollamaModels
+                },
+                new
+                {
+                    name = "GitHubModels",
+                    configured = ghConfigured,
+                    models = GitHubModelsLlmClient.KnownModels
+                }
+            }
         }
     });
 }).WithTags("Health");
+
+// LLM settings endpoints
+app.MapGet("/api/llm/settings", (LlmProviderSettings settings, LlmClientRouter router) =>
+{
+    var (provider, model) = settings.Current;
+    var hasToken = !string.IsNullOrEmpty(settings.Token) || (router.GitHubModels?.HasToken ?? false);
+    return Results.Ok(new { provider, model, hasToken });
+}).WithTags("LLM");
+
+app.MapPut("/api/llm/settings", (LlmSettingsRequest body, LlmProviderSettings settings, LlmClientRouter router, ILogger<Program> logger) =>
+{
+    if (string.IsNullOrWhiteSpace(body.Provider) || string.IsNullOrWhiteSpace(body.Model))
+        return Results.BadRequest(new { error = "provider and model are required" });
+
+    if (body.Provider is not ("Ollama" or "GitHubModels"))
+        return Results.BadRequest(new { error = "provider must be 'Ollama' or 'GitHubModels'" });
+
+    settings.Update(body.Provider, body.Model, body.Token);
+
+    // Push token to GitHubModels client immediately
+    if (body.Token is not null && router.GitHubModels is not null)
+        router.GitHubModels.UpdateToken(body.Token);
+
+    logger.LogInformation("LLM settings updated: provider={Provider}, model={Model}", body.Provider, body.Model);
+
+    return Results.Ok(new { provider = body.Provider, model = body.Model });
+}).WithTags("LLM");
+
+app.MapGet("/api/llm/providers", async (LlmClientRouter router, CancellationToken ct) =>
+{
+    var (ollamaRunning, ollamaModels) = await router.Ollama.GetStatusAsync(ct);
+    var ghConfigured = router.GitHubModels?.HasToken ?? false;
+
+    return Results.Ok(new[]
+    {
+        new
+        {
+            name = "Ollama",
+            available = ollamaRunning,
+            models = ollamaModels
+        },
+        new
+        {
+            name = "GitHubModels",
+            available = ghConfigured,
+            models = GitHubModelsLlmClient.KnownModels
+        }
+    });
+}).WithTags("LLM");
 
 // Metrics endpoint
 app.MapGet("/metrics", (MetricsCollector metrics) => Results.Ok(metrics.GetSnapshot()))
@@ -161,3 +226,5 @@ app.Run();
 
 // Make Program accessible for integration tests
 public partial class Program { }
+
+internal sealed record LlmSettingsRequest(string Provider, string Model, string? Token = null);

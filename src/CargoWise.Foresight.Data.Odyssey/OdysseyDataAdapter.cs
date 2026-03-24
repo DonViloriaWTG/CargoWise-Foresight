@@ -194,6 +194,30 @@ public sealed class OdysseyDataAdapter : IDataAdapter
         return Task.FromResult(prior);
     }
 
+    public Task<RatePrior?> GetRatePriorAsync(string origin, string destination, string mode, CancellationToken ct = default)
+    {
+        // TODO: Query historical JobCharge data for rate benchmarks on this lane
+        var prior = new RatePrior
+        {
+            Origin = origin.ToUpperInvariant(),
+            Destination = destination.ToUpperInvariant(),
+            Mode = mode
+        };
+        return Task.FromResult<RatePrior?>(prior);
+    }
+
+    public Task<QuotationPrior?> GetQuotationPriorAsync(string origin, string destination, string mode, CancellationToken ct = default)
+    {
+        // TODO: Query historical quotation win/loss data for this lane
+        var prior = new QuotationPrior
+        {
+            Origin = origin.ToUpperInvariant(),
+            Destination = destination.ToUpperInvariant(),
+            Mode = mode
+        };
+        return Task.FromResult<QuotationPrior?>(prior);
+    }
+
     /// <summary>Checks database connectivity.</summary>
     public async Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
@@ -653,7 +677,12 @@ public sealed class OdysseyDataAdapter : IDataAdapter
                 RegionDistance.Intercontinental => (28.0, 5.0, 0.20, 3.0, 2.0),
                 _ => (18.0, 4.0, 0.15, 2.5, 1.5)
             },
-            "ROAD" => (3.0, 1.0, 0.08, 1.0, 0.5),
+            "ROAD" => region switch
+            {
+                RegionDistance.Local => (3.0, 1.0, 0.08, 1.0, 0.5),
+                RegionDistance.Regional => (7.0, 2.0, 0.10, 1.5, 1.0),
+                _ => (30.0, 10.0, 0.25, 3.0, 2.0)  // Intercontinental road is infeasible; high values signal this
+            },
             "RAIL" => region switch
             {
                 RegionDistance.Local => (3.0, 1.0, 0.05, 1.0, 0.5),
