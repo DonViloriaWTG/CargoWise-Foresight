@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using CargoWise.Foresight.Core.Interfaces;
 using CargoWise.Foresight.Core.Models;
@@ -11,11 +12,23 @@ public sealed class InMemoryKnowledgeStore : IKnowledgeStore
     private readonly IEmbeddingClient _embeddingClient;
     private readonly ILogger<InMemoryKnowledgeStore> _logger;
     private readonly ConcurrentDictionary<string, KnowledgeChunk> _chunks = new();
+    private readonly string? _filePath;
+    private readonly object _fileLock = new();
 
-    public InMemoryKnowledgeStore(IEmbeddingClient embeddingClient, ILogger<InMemoryKnowledgeStore> logger)
+    private static readonly JsonSerializerOptions FileJsonOpts = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    public InMemoryKnowledgeStore(IEmbeddingClient embeddingClient, ILogger<InMemoryKnowledgeStore> logger, string? filePath = null)
     {
         _embeddingClient = embeddingClient;
         _logger = logger;
+        _filePath = filePath;
+
+        if (_filePath is not null)
+            LoadFromFile();
     }
 
     public async Task IngestAsync(KnowledgeChunk chunk, CancellationToken ct = default)
@@ -26,6 +39,7 @@ public sealed class InMemoryKnowledgeStore : IKnowledgeStore
 
         _chunks[stored.Id] = stored;
         _logger.LogInformation("Ingested knowledge chunk {ChunkId} in category {Category}", stored.Id, stored.Category);
+        SaveToFile();
     }
 
     public async Task IngestManyAsync(IEnumerable<KnowledgeChunk> chunks, CancellationToken ct = default)
@@ -78,6 +92,7 @@ public sealed class InMemoryKnowledgeStore : IKnowledgeStore
     public Task RemoveAsync(string chunkId)
     {
         _chunks.TryRemove(chunkId, out _);
+        SaveToFile();
         return Task.CompletedTask;
     }
 
@@ -96,6 +111,7 @@ public sealed class InMemoryKnowledgeStore : IKnowledgeStore
         }
 
         _logger.LogInformation("Re-embedding complete for {Count} chunks", chunks.Count);
+        SaveToFile();
     }
 
     internal static double CosineSimilarity(float[] a, float[] b)
@@ -132,5 +148,48 @@ public sealed class InMemoryKnowledgeStore : IKnowledgeStore
 
         if (normA == 0f || normB == 0f) return 0.0;
         return dot / (MathF.Sqrt(normA) * MathF.Sqrt(normB));
+    }
+
+    private void LoadFromFile()
+    {
+        if (_filePath is null || !File.Exists(_filePath)) return;
+
+        try
+        {
+            var json = File.ReadAllText(_filePath);
+            var chunks = JsonSerializer.Deserialize<List<KnowledgeChunk>>(json, FileJsonOpts);
+            if (chunks is null) return;
+
+            foreach (var chunk in chunks)
+                _chunks[chunk.Id] = chunk;
+
+            _logger.LogInformation("Loaded {Count} knowledge chunks from {FilePath}", chunks.Count, _filePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load knowledge store from {FilePath}, starting empty", _filePath);
+        }
+    }
+
+    private void SaveToFile()
+    {
+        if (_filePath is null) return;
+
+        try
+        {
+            lock (_fileLock)
+            {
+                var dir = Path.GetDirectoryName(_filePath);
+                if (dir is not null && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                var json = JsonSerializer.Serialize(_chunks.Values.ToList(), FileJsonOpts);
+                File.WriteAllText(_filePath, json);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save knowledge store to {FilePath}", _filePath);
+        }
     }
 }

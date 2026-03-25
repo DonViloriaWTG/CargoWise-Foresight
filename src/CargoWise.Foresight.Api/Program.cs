@@ -76,8 +76,12 @@ builder.Services.AddSingleton<LlmClientRouter>(sp => new LlmClientRouter(
 builder.Services.AddSingleton<ILlmClient>(sp => sp.GetRequiredService<LlmClientRouter>());
 builder.Services.AddSingleton<IEmbeddingClient>(sp => sp.GetRequiredService<LlmClientRouter>());
 
-// RAG — knowledge store
-builder.Services.AddSingleton<IKnowledgeStore, InMemoryKnowledgeStore>();
+// RAG — knowledge store (persisted to local file)
+var knowledgeFilePath = Path.Combine(AppContext.BaseDirectory, "data", "knowledge-store.json");
+builder.Services.AddSingleton<IKnowledgeStore>(sp => new InMemoryKnowledgeStore(
+    sp.GetRequiredService<IEmbeddingClient>(),
+    sp.GetRequiredService<ILogger<InMemoryKnowledgeStore>>(),
+    knowledgeFilePath));
 
 // Observability
 builder.Services.AddSingleton<MetricsCollector>();
