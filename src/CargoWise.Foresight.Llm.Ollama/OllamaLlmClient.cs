@@ -8,7 +8,7 @@ using CargoWise.Foresight.Core.Interfaces;
 
 namespace CargoWise.Foresight.Llm.Ollama;
 
-public sealed class OllamaLlmClient : ILlmClient, IDisposable
+public sealed class OllamaLlmClient : ILlmClient, IEmbeddingClient, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly OllamaOptions _options;
@@ -178,6 +178,40 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
         }
     }
 
+    public async Task<float[]> GenerateEmbeddingAsync(string text, CancellationToken ct = default)
+    {
+        if (IsCircuitOpen())
+            throw new InvalidOperationException("Circuit breaker is open. Ollama calls are temporarily disabled.");
+
+        var model = _options.EmbeddingModel ?? ActiveModel;
+        var request = new OllamaEmbedRequest { Model = model, Input = text };
+        var json = JsonSerializer.Serialize(request, JsonOpts);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        _logger.LogInformation("Sending embed request to Ollama model={Model}, textLength={Len}", model, text.Length);
+
+        try
+        {
+            var response = await _httpClient.PostAsync("/api/embed", content, ct);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<OllamaEmbedResponse>(JsonOpts, ct);
+            RecordSuccess();
+
+            if (result?.Embeddings is { Length: > 0 })
+                return result.Embeddings[0];
+
+            return [];
+        }
+        catch (Exception ex)
+        {
+            RecordFailure();
+            _logger.LogError(ex, "Ollama embedding request failed");
+            throw;
+        }
+    }
+
+    Task<bool> IEmbeddingClient.IsAvailableAsync(CancellationToken ct) => IsAvailableAsync(ct);
+
     public void Dispose()
     {
         _httpClient.Dispose();
@@ -220,5 +254,20 @@ public sealed class OllamaLlmClient : ILlmClient, IDisposable
     {
         [JsonPropertyName("name")]
         public string? Name { get; set; }
+    }
+
+    private sealed class OllamaEmbedRequest
+    {
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = "";
+
+        [JsonPropertyName("input")]
+        public string Input { get; set; } = "";
+    }
+
+    private sealed class OllamaEmbedResponse
+    {
+        [JsonPropertyName("embeddings")]
+        public float[][]? Embeddings { get; set; }
     }
 }

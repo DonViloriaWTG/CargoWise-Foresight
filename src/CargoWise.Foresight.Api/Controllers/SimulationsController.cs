@@ -13,17 +13,20 @@ public sealed class SimulationsController : ControllerBase
 {
     private readonly ISimulationEngine _engine;
     private readonly IExplanationService _explanationService;
+    private readonly IMitigationService _mitigationService;
     private readonly MetricsCollector _metrics;
     private readonly ILogger<SimulationsController> _logger;
 
     public SimulationsController(
         ISimulationEngine engine,
         IExplanationService explanationService,
+        IMitigationService mitigationService,
         MetricsCollector metrics,
         ILogger<SimulationsController> logger)
     {
         _engine = engine;
         _explanationService = explanationService;
+        _mitigationService = mitigationService;
         _metrics = metrics;
         _logger = logger;
     }
@@ -54,6 +57,10 @@ public sealed class SimulationsController : ControllerBase
                 request.RequestId, request.ChangeSet.ChangeType);
 
             var result = await _engine.RunAsync(request, ct);
+
+            var enhancedRisks = await _mitigationService.EnhanceMitigationsAsync(result.Risks, request, ct);
+            var enhancedRecs = await _mitigationService.EnhanceRecommendationsAsync(result.Recommendations, request, result, ct);
+            result = result with { Risks = enhancedRisks, Recommendations = enhancedRecs };
 
             sw.Stop();
             _metrics.RecordSimulation(request.RequestId, sw.Elapsed, true);

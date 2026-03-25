@@ -1365,9 +1365,9 @@ async function checkHealth() {
             var od = data.odyssey;
             document.getElementById('dataDot').style.background = od.connected ? '#2e7d32' : '#e53935';
             if (od.connected) {
-                document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} ODYSSEY: ' + od.ports.toLocaleString() + ' ports, ' + od.carriers + ' carriers';
+                document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} ' + (od.databaseName || 'ODYSSEY') + ': ' + od.ports.toLocaleString() + ' ports, ' + od.carriers + ' carriers';
             } else {
-                document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} ODYSSEY: Disconnected';
+                document.getElementById('dataLabel').textContent = '\u{1F5C4}\u{FE0F} ' + (od.databaseName || 'ODYSSEY') + ': Disconnected';
             }
         } else {
             document.getElementById('dataDot').style.background = '#ef6c00';

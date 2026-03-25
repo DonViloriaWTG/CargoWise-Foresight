@@ -246,12 +246,13 @@ public sealed class OdysseyDataAdapter : IDataAdapter
             var carrierHistCount = hasHistory ? (await _carrierStats.Value).Count : 0;
             var routeHistCount = hasHistory ? (await _routeStats.Value).Count : 0;
             var customsHistCount = hasHistory ? (await _customsStats.Value).Count : 0;
-            return new OdysseyStatus(true, ports.Count, carriers.Count, countries.Count,
+            var dbName = new SqlConnectionStringBuilder(_connectionString).InitialCatalog;
+            return new OdysseyStatus(true, dbName, ports.Count, carriers.Count, countries.Count,
                 hasHistory, carrierHistCount, routeHistCount, customsHistCount);
         }
         catch
         {
-            return new OdysseyStatus(false, 0, 0, 0, false, 0, 0, 0);
+            return new OdysseyStatus(false, string.Empty, 0, 0, 0, false, 0, 0, 0);
         }
     }
 
@@ -755,5 +756,5 @@ public sealed class OdysseyDataAdapter : IDataAdapter
     internal sealed record CostStats(int ShipmentCount, double MeanCostPerShipment);
 }
 
-public sealed record OdysseyStatus(bool Connected, int PortCount, int CarrierCount, int CountryCount,
+public sealed record OdysseyStatus(bool Connected, string DatabaseName, int PortCount, int CarrierCount, int CountryCount,
     bool HasShipmentHistory, int CarrierStatCount, int RouteStatCount, int CustomsStatCount);

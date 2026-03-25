@@ -7,7 +7,13 @@ namespace CargoWise.Foresight.Core.Services;
 
 public sealed class ExplanationService : IExplanationService
 {
+    private sealed record RetrievedKnowledgeContext(string PromptContext, IReadOnlyList<KnowledgeChunk> Chunks)
+    {
+        public static readonly RetrievedKnowledgeContext Empty = new("", []);
+    }
+
     private readonly ILlmClient _llmClient;
+    private readonly IKnowledgeStore? _knowledgeStore;
     private readonly ILogger<ExplanationService> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -16,10 +22,11 @@ public sealed class ExplanationService : IExplanationService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public ExplanationService(ILlmClient llmClient, ILogger<ExplanationService> logger)
+    public ExplanationService(ILlmClient llmClient, ILogger<ExplanationService> logger, IKnowledgeStore? knowledgeStore = null)
     {
         _llmClient = llmClient;
         _logger = logger;
+        _knowledgeStore = knowledgeStore;
     }
 
     public async Task<ExplanationResponse> ExplainAsync(ExplanationRequest request, CancellationToken ct = default)
@@ -46,7 +53,11 @@ public sealed class ExplanationService : IExplanationService
         try
         {
             var redactedResult = RedactSensitiveData(request.SimulationResult);
-            string systemPrompt = BuildSystemPrompt(request.Audience, request.Tone);
+
+            // RAG: retrieve relevant domain knowledge
+            var knowledgeContext = await RetrieveContextAsync(request.SimulationResult, ct);
+
+            string systemPrompt = BuildSystemPrompt(request.Audience, request.Tone, knowledgeContext.PromptContext);
             string userPrompt = BuildUserPrompt(redactedResult);
 
             string narrative = await _llmClient.GenerateAsync(systemPrompt, userPrompt, ct);
@@ -60,7 +71,7 @@ public sealed class ExplanationService : IExplanationService
                 Narrative = narrative,
                 KeyDrivers = ExtractKeyDrivers(request.SimulationResult),
                 Assumptions = ExtractAssumptions(request.SimulationResult),
-                Caveats = GetStandardCaveats(),
+                Caveats = GetStandardCaveats(knowledgeContext.Chunks),
                 GeneratedByLlm = true
             };
         }
@@ -71,8 +82,17 @@ public sealed class ExplanationService : IExplanationService
         }
     }
 
-    private static string BuildSystemPrompt(string audience, string tone)
+    private static string BuildSystemPrompt(string audience, string tone, string ragContext = "")
     {
+        var contextSection = string.IsNullOrWhiteSpace(ragContext)
+            ? ""
+            : $"""
+            
+            REFERENCE KNOWLEDGE (use this to enrich your explanation where relevant):
+            {ragContext}
+            
+            """;
+
         return $"""
             You are Cassandra, the logistics simulation advisor for CargoWise Foresight.
             Your name is Cassandra. Always sign off as "— Cassandra, CargoWise Foresight Advisor".
@@ -103,6 +123,7 @@ public sealed class ExplanationService : IExplanationService
             - Say "chance" instead of "probability".
             - Use everyday words. Avoid jargon like "distribution", "standard deviation", or "Monte Carlo".
             - Keep it short — aim for 4-6 sentences, not paragraphs.
+            {contextSection}
             """;
     }
 
@@ -128,6 +149,44 @@ public sealed class ExplanationService : IExplanationService
     {
         // Redact any traces/internal state before sending to LLM
         return result with { Traces = null };
+    }
+
+    private async Task<RetrievedKnowledgeContext> RetrieveContextAsync(SimulationResult result, CancellationToken ct)
+    {
+        if (_knowledgeStore is null) return RetrievedKnowledgeContext.Empty;
+
+        try
+        {
+            var count = await _knowledgeStore.CountAsync();
+            if (count == 0) return RetrievedKnowledgeContext.Empty;
+
+            // Build a query from the simulation context
+            var queryParts = new List<string>();
+            queryParts.Add(result.Summary.Outcome);
+            foreach (var risk in result.Risks.Take(3))
+                queryParts.Add($"{risk.Type} {risk.RationaleFacts}");
+
+            var query = string.Join(" ", queryParts);
+            var results = await _knowledgeStore.SearchAsync(query, topK: 5, minSimilarity: 0.3, ct: ct);
+
+            var verifiedResults = results
+                .Where(r => KnowledgeUsagePolicy.IsVerifiedForRag(r.Chunk))
+                .Take(3)
+                .ToList();
+
+            if (verifiedResults.Count == 0) return RetrievedKnowledgeContext.Empty;
+
+            var contextParts = verifiedResults.Select(r =>
+                $"[{r.Chunk.Category}: {r.Chunk.Title}] {r.Chunk.Content}");
+
+            _logger.LogInformation("RAG retrieved {Count} verified knowledge chunks for explanation", verifiedResults.Count);
+            return new RetrievedKnowledgeContext(string.Join("\n\n", contextParts), verifiedResults.Select(r => r.Chunk).ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "RAG retrieval failed, proceeding without context");
+            return RetrievedKnowledgeContext.Empty;
+        }
     }
 
     private static string SanitizePromptInput(string input)
@@ -191,7 +250,7 @@ public sealed class ExplanationService : IExplanationService
             Narrative = string.Join("\n\n", parts),
             KeyDrivers = ExtractKeyDrivers(result),
             Assumptions = ExtractAssumptions(result),
-            Caveats = GetStandardCaveats(),
+            Caveats = GetStandardCaveats([]),
             GeneratedByLlm = false
         };
     }
@@ -256,14 +315,17 @@ public sealed class ExplanationService : IExplanationService
         ];
     }
 
-    private static List<string> GetStandardCaveats()
+    private static List<string> GetStandardCaveats(IReadOnlyList<KnowledgeChunk> usedKnowledgeChunks)
     {
-        return
-        [
+        var caveats = new List<string>
+        {
             "These are estimates based on simulations, not guarantees",
             "Unexpected events (weather, strikes, policy changes) could change the outcome",
             "This is advisory only — nothing has been changed in the live system",
             "For compliance-related decisions, always check with a licensed broker"
-        ];
+        };
+
+        caveats.Add(KnowledgeUsagePolicy.BuildFreshnessDisclaimer(usedKnowledgeChunks));
+        return caveats;
     }
 }

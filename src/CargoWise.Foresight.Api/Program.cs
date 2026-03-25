@@ -55,6 +55,7 @@ else
 }
 builder.Services.AddSingleton<ISimulationEngine, MonteCarloSimulationEngine>();
 builder.Services.AddSingleton<IExplanationService, ExplanationService>();
+builder.Services.AddSingleton<IMitigationService, MitigationService>();
 
 // LLM providers — register both, route via LlmClientRouter
 builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
@@ -73,6 +74,10 @@ builder.Services.AddSingleton<LlmClientRouter>(sp => new LlmClientRouter(
     sp.GetService<GitHubModelsLlmClient>(),
     sp.GetRequiredService<ILogger<LlmClientRouter>>()));
 builder.Services.AddSingleton<ILlmClient>(sp => sp.GetRequiredService<LlmClientRouter>());
+builder.Services.AddSingleton<IEmbeddingClient>(sp => sp.GetRequiredService<LlmClientRouter>());
+
+// RAG — knowledge store
+builder.Services.AddSingleton<IKnowledgeStore, InMemoryKnowledgeStore>();
 
 // Observability
 builder.Services.AddSingleton<MetricsCollector>();
@@ -93,6 +98,22 @@ app.UseSwaggerUI(c =>
 
 app.MapControllers();
 
+// Seed knowledge store with domain knowledge
+_ = Task.Run(async () =>
+{
+    try
+    {
+        var knowledgeStore = app.Services.GetRequiredService<IKnowledgeStore>();
+        var seedLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("KnowledgeSeeder");
+        await KnowledgeSeeder.SeedAsync(knowledgeStore, seedLogger);
+    }
+    catch (Exception ex)
+    {
+        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("KnowledgeSeeder");
+        logger.LogWarning(ex, "Knowledge seeding failed — RAG will operate without seed data until embeddings are available");
+    }
+});
+
 // Reference data endpoints
 app.MapGet("/api/ports", async (string? q, IDataAdapter data, CancellationToken ct) =>
 {
@@ -107,7 +128,7 @@ app.MapGet("/api/carriers", async (IDataAdapter data, CancellationToken ct) =>
 });
 
 // Health endpoint
-app.MapGet("/health", async (LlmClientRouter router, LlmProviderSettings llmSettings, IDataAdapter data, IConfiguration config, CancellationToken ct) =>
+app.MapGet("/health", async (LlmClientRouter router, LlmProviderSettings llmSettings, IDataAdapter data, IKnowledgeStore knowledgeStore, IConfiguration config, CancellationToken ct) =>
 {
     var dataSourceName = config.GetValue<string>("DataSource") ?? "Mock";
     object? dataStatus = null;
@@ -118,6 +139,7 @@ app.MapGet("/health", async (LlmClientRouter router, LlmProviderSettings llmSett
         dataStatus = new
         {
             connected = odyStatus.Connected,
+            databaseName = odyStatus.DatabaseName,
             ports = odyStatus.PortCount,
             carriers = odyStatus.CarrierCount,
             countries = odyStatus.CountryCount,
@@ -137,6 +159,7 @@ app.MapGet("/health", async (LlmClientRouter router, LlmProviderSettings llmSett
     var (ollamaRunning, ollamaModels) = await router.Ollama.GetStatusAsync(ct);
 
     var ghConfigured = router.GitHubModels?.HasToken ?? false;
+    var knowledgeCount = await knowledgeStore.CountAsync();
 
     return Results.Ok(new
     {
@@ -146,6 +169,7 @@ app.MapGet("/health", async (LlmClientRouter router, LlmProviderSettings llmSett
         timestamp = DateTimeOffset.UtcNow,
         dataSource = dataSourceName,
         odyssey = dataStatus,
+        rag = new { knowledgeChunks = knowledgeCount },
         llm = new
         {
             activeProvider,
@@ -177,13 +201,15 @@ app.MapGet("/api/llm/settings", (LlmProviderSettings settings, LlmClientRouter r
     return Results.Ok(new { provider, model, hasToken });
 }).WithTags("LLM");
 
-app.MapPut("/api/llm/settings", (LlmSettingsRequest body, LlmProviderSettings settings, LlmClientRouter router, ILogger<Program> logger) =>
+app.MapPut("/api/llm/settings", async (LlmSettingsRequest body, LlmProviderSettings settings, LlmClientRouter router, IKnowledgeStore knowledgeStore, ILogger<Program> logger, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(body.Provider) || string.IsNullOrWhiteSpace(body.Model))
         return Results.BadRequest(new { error = "provider and model are required" });
 
     if (body.Provider is not ("Ollama" or "GitHubModels"))
         return Results.BadRequest(new { error = "provider must be 'Ollama' or 'GitHubModels'" });
+
+    var (previousProvider, _) = settings.Current;
 
     settings.Update(body.Provider, body.Model, body.Token);
 
@@ -192,6 +218,22 @@ app.MapPut("/api/llm/settings", (LlmSettingsRequest body, LlmProviderSettings se
         router.GitHubModels.UpdateToken(body.Token);
 
     logger.LogInformation("LLM settings updated: provider={Provider}, model={Model}", body.Provider, body.Model);
+
+    // Re-embed knowledge chunks if the embedding provider changed
+    if (!previousProvider.Equals(body.Provider, StringComparison.OrdinalIgnoreCase))
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await knowledgeStore.ReEmbedAllAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Background re-embedding failed after provider switch to {Provider}", body.Provider);
+            }
+        });
+    }
 
     return Results.Ok(new { provider = body.Provider, model = body.Model });
 }).WithTags("LLM");

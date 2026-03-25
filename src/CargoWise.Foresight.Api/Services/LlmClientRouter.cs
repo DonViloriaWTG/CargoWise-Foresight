@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CargoWise.Foresight.Api.Services;
 
-public sealed class LlmClientRouter : ILlmClient
+public sealed class LlmClientRouter : ILlmClient, IEmbeddingClient
 {
     private readonly LlmProviderSettings _settings;
     private readonly OllamaLlmClient _ollama;
@@ -45,6 +45,21 @@ public sealed class LlmClientRouter : ILlmClient
         return _ollama;
     }
 
+    private IEmbeddingClient GetActiveEmbeddingClient()
+    {
+        var (provider, _) = _settings.Current;
+
+        if (provider.Equals("GitHubModels", StringComparison.OrdinalIgnoreCase) && _githubModels is not null)
+        {
+            var token = _settings.Token;
+            if (!string.IsNullOrEmpty(token))
+                _githubModels.UpdateToken(token);
+            return _githubModels;
+        }
+
+        return _ollama;
+    }
+
     public Task<string> GenerateAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
     {
         var (provider, model) = _settings.Current;
@@ -55,5 +70,17 @@ public sealed class LlmClientRouter : ILlmClient
     public Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
         return GetActiveClient().IsAvailableAsync(ct);
+    }
+
+    public Task<float[]> GenerateEmbeddingAsync(string text, CancellationToken ct = default)
+    {
+        var (provider, _) = _settings.Current;
+        _logger.LogInformation("Routing embedding request to {Provider}", provider);
+        return GetActiveEmbeddingClient().GenerateEmbeddingAsync(text, ct);
+    }
+
+    Task<bool> IEmbeddingClient.IsAvailableAsync(CancellationToken ct)
+    {
+        return GetActiveEmbeddingClient().IsAvailableAsync(ct);
     }
 }

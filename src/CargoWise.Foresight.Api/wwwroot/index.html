@@ -333,6 +333,49 @@
             margin-top: 4px;
         }
 
+        /* Baseline comparison charts */
+        .comparison-section { margin-bottom: 24px; }
+        .comparison-section h3 { margin: 0 0 8px 0; font-size: 15px; }
+        .comparison-legend {
+            display: flex; gap: 16px; font-size: 12px; color: var(--gray-500); margin-bottom: 8px;
+        }
+        .comparison-legend .swatch {
+            display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 4px; vertical-align: middle;
+        }
+        .overlay-histogram {
+            display: flex; align-items: flex-end; gap: 2px; height: 100px; margin-top: 4px; position: relative;
+        }
+        .overlay-histogram .bucket {
+            flex: 1; position: relative; display: flex; align-items: flex-end;
+        }
+        .overlay-histogram .bucket .bar-baseline {
+            position: absolute; bottom: 0; left: 15%; width: 70%;
+            background: #94a3b8; border-radius: 3px 3px 0 0; opacity: 0.5; z-index: 1;
+        }
+        .overlay-histogram .bucket .bar-changed {
+            position: absolute; bottom: 0; left: 15%; width: 70%;
+            background: var(--primary); border-radius: 3px 3px 0 0; opacity: 0.75; z-index: 2;
+        }
+        .overlay-histogram .bucket:hover .bar-baseline { opacity: 0.7; }
+        .overlay-histogram .bucket:hover .bar-changed { opacity: 1; }
+        .overlay-histogram .bucket .tooltip {
+            display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: var(--gray-900); color: white; padding: 4px 8px; border-radius: 4px;
+            font-size: 11px; white-space: nowrap; z-index: 10; margin-bottom: 4px;
+        }
+        .overlay-histogram .bucket:hover .tooltip { display: block; }
+        .metric-comparison-row {
+            display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--gray-100);
+        }
+        .metric-comparison-row:last-child { border-bottom: none; }
+        .metric-comparison-label { width: 80px; font-weight: 500; font-size: 13px; flex-shrink: 0; }
+        .metric-comparison-bars { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+        .metric-bar-track { height: 18px; background: var(--gray-100); border-radius: 4px; position: relative; overflow: hidden; }
+        .metric-bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: 11px; font-weight: 600; color: white; white-space: nowrap; }
+        .metric-bar-fill.baseline { background: #94a3b8; }
+        .metric-bar-fill.changed { background: var(--primary); }
+        .metric-comparison-delta { width: 100px; text-align: right; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+
         /* Risk flags */
         .risk-item {
             border: 1px solid var(--gray-200);
@@ -534,6 +577,144 @@
             color: var(--gray-500);
             font-size: 12px;
         }
+
+        /* RAG popover */
+        .rag-indicator { position: relative; cursor: pointer; }
+        .rag-popover {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            color: var(--gray-900);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            padding: 16px;
+            width: 340px;
+            z-index: 200;
+            font-size: 13px;
+        }
+        .rag-indicator.open .rag-popover { display: block; }
+        .rag-popover h4 { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+        .rag-popover .source-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 8px 0;
+        }
+        .rag-popover .source-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+            font-size: 12px;
+            color: var(--gray-700);
+        }
+        .rag-popover .source-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            flex-shrink: 0;
+        }
+        .rag-popover .rag-note {
+            font-size: 11px;
+            color: var(--gray-500);
+            border-top: 1px solid var(--gray-200);
+            padding-top: 8px;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        /* Freshness notice in explanation */
+        .freshness-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #1e40af;
+            margin-top: 12px;
+        }
+        .freshness-notice.no-data {
+            background: #fefce8;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+        .freshness-notice .fn-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+        /* Knowledge management panel */
+        .knowledge-panel {
+            margin-top: 24px;
+        }
+        .knowledge-panel .kp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 12px 20px;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            user-select: none;
+        }
+        .knowledge-panel .kp-header:hover { background: var(--gray-50); }
+        .knowledge-panel .kp-header h2 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-700);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+        .knowledge-panel .kp-body {
+            display: none;
+            border: 1px solid var(--gray-200);
+            border-top: none;
+            border-radius: 0 0 var(--radius) var(--radius);
+            background: white;
+            padding: 20px;
+        }
+        .knowledge-panel.open .kp-body { display: block; }
+        .knowledge-panel.open .kp-header { border-radius: var(--radius) var(--radius) 0 0; }
+        .kp-toolbar {
+            display: flex; gap: 8px; margin-bottom: 16px; align-items: center;
+        }
+        .kp-toolbar input, .kp-toolbar select {
+            width: auto; flex: 1;
+        }
+        .kp-toolbar .btn { width: auto; padding: 8px 14px; font-size: 12px; }
+        .kp-chunk-list { display: flex; flex-direction: column; gap: 8px; }
+        .kp-chunk {
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 12px 14px;
+            font-size: 13px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .kp-chunk .kp-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+        .kp-chunk .kp-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .kp-badge-verified { background: #dcfce7; color: #166534; }
+        .kp-badge-unverified { background: #fef2f2; color: #991b1b; }
+        .kp-badge-approved { background: #dbeafe; color: #1e40af; }
+        .kp-badge-unapproved { background: #fef3c7; color: #92400e; }
+        .kp-chunk .kp-delete {
+            background: none; border: none; cursor: pointer; color: var(--gray-500);
+            font-size: 14px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0;
+        }
+        .kp-chunk .kp-delete:hover { background: #fef2f2; color: var(--danger); }
     </style>
 </head>
 <body>
@@ -560,6 +741,21 @@
             <span id="ollamaDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
             <span id="ollamaLabel" style="font-size:12px;opacity:0.8;">🧠 LLM: Checking...</span>
             <span id="ollamaDetail" style="font-size:11px;opacity:0.6;"></span>
+        </div>
+        <div class="rag-indicator" id="ragIndicator" onclick="toggleRagPopover(event)" title="RAG Knowledge Store">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="ragDot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;"></span>
+                <span id="ragLabel" style="font-size:12px;opacity:0.8;">📚 RAG: Checking...</span>
+            </div>
+            <div class="rag-popover" id="ragPopover">
+                <h4>📚 RAG Knowledge Store</h4>
+                <div id="ragPopoverStatus" style="margin-bottom:8px;font-size:12px;color:var(--gray-500);">Loading...</div>
+                <h4 style="margin-top:12px;">Approved Sources</h4>
+                <div class="source-list" id="ragSourceList">Loading...</div>
+                <div class="rag-note">
+                    Only knowledge from approved sources (marked <em>verified</em>) can influence Cassandra's explanations and mitigations. Data from other sources is stored but never reaches the LLM.
+                </div>
+            </div>
         </div>
         <a href="/settings.html" style="font-size:12px;color:rgba(255,255,255,0.8);text-decoration:none;" title="LLM Settings">⚙️ Settings</a>
     </div>
@@ -714,6 +910,85 @@
                     <div class="icon">🔮</div>
                     <p style="font-size:16px;font-weight:600;margin-bottom:4px;">No simulation results yet</p>
                     <p>Choose a scenario or configure your own, then click <strong>Run Simulation</strong>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Knowledge Management Panel -->
+<div class="container">
+    <div class="knowledge-panel" id="knowledgePanel">
+        <div class="kp-header" onclick="toggleKnowledgePanel()">
+            <h2>📚 Knowledge Management <span id="kpCount" class="badge" style="background:var(--gray-100);color:var(--gray-500);">0 chunks</span></h2>
+            <span id="kpChevron" style="font-size:16px;color:var(--gray-500);">▶</span>
+        </div>
+        <div class="kp-body">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;margin-bottom:16px;font-size:12px;color:#1e40af;line-height:1.6;">
+                <span style="font-size:16px;flex-shrink:0;">ℹ️</span>
+                <div>
+                    <strong>How this works:</strong> RAG knowledge only affects Cassandra's narrative explanations and mitigation suggestions — not the simulation numbers.
+                    With 0 chunks, the simulation runs identically and Cassandra still generates explanations using the LLM's built-in training knowledge.
+                    Adding verified data here (e.g., current freight indices, port stats, regulatory updates) gives Cassandra <em>specific, dated facts</em> it wouldn't otherwise know,
+                    making its advice more accurate and grounded.
+                </div>
+            </div>
+            <div class="kp-toolbar">
+                <input id="kpSearchQuery" placeholder="Search knowledge chunks..." style="flex:2;">
+                <button class="btn btn-outline" onclick="searchKnowledge()" style="flex:0 0 auto;">🔍 Search</button>
+                <button class="btn btn-outline" onclick="showAddChunkForm()" id="kpAddBtn" style="flex:0 0 auto;">+ Add</button>
+                <button class="btn btn-outline" onclick="loadKnowledgeList()" style="flex:0 0 auto;">↻ Refresh</button>
+            </div>
+
+            <!-- Add Chunk Form (hidden by default) -->
+            <div id="kpAddForm" style="display:none;border:1px solid var(--gray-200);border-radius:6px;padding:16px;margin-bottom:16px;background:var(--gray-50);">
+                <h4 style="font-size:13px;font-weight:600;margin:0 0 12px;">Add Knowledge Chunk</h4>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label>Title</label>
+                        <input id="kpNewTitle" placeholder="e.g. Drewry WCI March 2026">
+                    </div>
+                    <div class="form-row">
+                        <label>Category</label>
+                        <select id="kpNewCategory">
+                            <option value="market">Market Data</option>
+                            <option value="regulatory">Regulatory</option>
+                            <option value="customs">Customs</option>
+                            <option value="ports">Ports</option>
+                            <option value="carriers">Carriers</option>
+                            <option value="rates">Rates</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label>Content</label>
+                    <textarea id="kpNewContent" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="Paste the verified data here..."></textarea>
+                </div>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label>Source (must be from approved list)</label>
+                        <select id="kpNewSource"><option value="">Loading...</option></select>
+                    </div>
+                    <div class="form-row">
+                        <label>As-of Date</label>
+                        <input id="kpNewAsOf" type="date">
+                    </div>
+                </div>
+                <div class="form-row" style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                    <input type="checkbox" id="kpNewVerified" checked style="width:auto;">
+                    <label for="kpNewVerified" style="margin:0;font-size:12px;">I verify this data is accurate and from the stated source</label>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="btn btn-primary" onclick="submitKnowledgeChunk()" style="width:auto;">Submit</button>
+                    <button class="btn btn-outline" onclick="hideAddChunkForm()" style="width:auto;">Cancel</button>
+                </div>
+                <div id="kpAddResult" style="margin-top:8px;font-size:12px;"></div>
+            </div>
+
+            <div class="kp-chunk-list" id="kpChunkList">
+                <div style="text-align:center;color:var(--gray-500);padding:20px;font-size:13px;">
+                    Click <strong>Refresh</strong> to load knowledge chunks.
                 </div>
             </div>
         </div>
@@ -1097,49 +1372,116 @@ function renderBaselineComparison(result) {
     const bd = b.distributions || {};
     const cd = result.distributions || {};
 
-    function row(label, changedVal, baselineVal, delta, unit, fmt) {
-        const cv = fmt(changedVal);
-        const bv = fmt(baselineVal);
-        let deltaHtml = '<span style="color:#6b7280;">—</span>';
-        if (delta != null && delta !== 0) {
-            const sign = delta > 0 ? '+' : '';
-            const color = delta > 0 ? '#dc2626' : '#16a34a';
-            const arrow = delta > 0 ? '▲' : '▼';
-            deltaHtml = `<span style="color:${color};font-weight:600;">${arrow} ${sign}${fmt(Math.abs(delta))} ${unit}</span>`;
-        }
-        return `<tr><td style="font-weight:500;">${label}</td><td>${bv}</td><td>${cv}</td><td>${deltaHtml}</td></tr>`;
-    }
-
-    const fDays = v => v != null ? v.toFixed(1) : '—';
-    const fCost = v => v != null ? '$' + v.toFixed(0) : '—';
-    const fPct = v => v != null ? (v * 100).toFixed(1) + '%' : '—';
-
-    let rows = '';
-    rows += row('ETA P50', cd.etaDays?.p50, bd.etaDays?.p50, d.etaDaysP50, 'days', fDays);
-    rows += row('ETA P95', cd.etaDays?.p95, bd.etaDays?.p95, d.etaDaysP95, 'days', fDays);
-    rows += row('Cost P50', cd.costUsd?.p50, bd.costUsd?.p50, d.costUsdP50, '', fCost);
-    rows += row('Cost P95', cd.costUsd?.p95, bd.costUsd?.p95, d.costUsdP95, '', fCost);
-    rows += row('SLA Breach', cd.slaBreachProbability?.mean, bd.slaBreachProbability?.mean, d.slaBreachProb, 'pp', fPct);
-
-    return `
+    let html = `
         <div style="margin-bottom:12px;">
             <p style="font-size:13px;color:var(--gray-500);margin:0 0 12px 0;">
                 Comparison of the proposed change against the current (baseline) scenario using the same ${result.summary.simulationRuns.toLocaleString()} Monte Carlo runs.
             </p>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-                <thead>
-                    <tr style="border-bottom:2px solid var(--gray-200);text-align:left;">
-                        <th style="padding:8px 12px;">Metric</th>
-                        <th style="padding:8px 12px;">Current</th>
-                        <th style="padding:8px 12px;">Proposed</th>
-                        <th style="padding:8px 12px;">Delta</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-            </table>
+            <div class="comparison-legend">
+                <span><span class="swatch" style="background:#94a3b8;"></span> Current (Baseline)</span>
+                <span><span class="swatch" style="background:var(--primary);"></span> Proposed (Changed)</span>
+            </div>
         </div>`;
+
+    // Overlay histograms for each distribution pair
+    if (cd.etaDays && bd.etaDays)
+        html += renderOverlaySection('ETA (Transit Days)', cd.etaDays, bd.etaDays, 'days', d.etaDaysP50);
+    if (cd.costUsd && bd.costUsd)
+        html += renderOverlaySection('Cost (USD)', cd.costUsd, bd.costUsd, 'USD', d.costUsdP50);
+    if (cd.slaBreachProbability && bd.slaBreachProbability)
+        html += renderOverlaySection('SLA Breach Probability', cd.slaBreachProbability, bd.slaBreachProbability, '%', d.slaBreachProb);
+    if (cd.marginPercent && bd.marginPercent)
+        html += renderOverlaySection('Margin', cd.marginPercent, bd.marginPercent, '%', null);
+    if (cd.winProbability && bd.winProbability)
+        html += renderOverlaySection('Win Probability', cd.winProbability, bd.winProbability, '%', null);
+
+    return html;
+}
+
+function renderOverlaySection(title, changed, baseline, unit, deltaP50) {
+    const isPct = unit === '%';
+    const fmtVal = (v) => unit === 'USD' ? '$' + v.toFixed(0) : isPct ? (v * 100).toFixed(1) + '%' : v.toFixed(1);
+    const fmtBucket = (lo, hi) => unit === 'USD'
+        ? `$${lo.toFixed(0)}–$${hi.toFixed(0)}`
+        : isPct ? `${(lo*100).toFixed(1)}%–${(hi*100).toFixed(1)}%`
+        : `${lo.toFixed(1)}–${hi.toFixed(1)}`;
+
+    // Merge histogram ranges: use the wider of baseline/changed bounds
+    const allBuckets = [...changed.histogram, ...baseline.histogram];
+    const globalMax = Math.max(...allBuckets.map(b => b.count), 1);
+
+    // Build overlay bars (assumes same bucket count — engine uses 10 for both)
+    const bucketCount = Math.max(changed.histogram.length, baseline.histogram.length);
+    let bars = '';
+    for (let i = 0; i < bucketCount; i++) {
+        const cb = changed.histogram[i];
+        const bb = baseline.histogram[i];
+        const cPct = cb ? (cb.count / globalMax) * 100 : 0;
+        const bPct = bb ? (bb.count / globalMax) * 100 : 0;
+        const range = cb ? fmtBucket(cb.lowerBound, cb.upperBound) : (bb ? fmtBucket(bb.lowerBound, bb.upperBound) : '');
+        const tipText = `${range}\\nBaseline: ${bb?.count ?? 0} · Changed: ${cb?.count ?? 0}`;
+        bars += `<div class="bucket">
+            <div class="bar-baseline" style="height:${Math.max(bPct, 2)}%;"></div>
+            <div class="bar-changed" style="height:${Math.max(cPct, 2)}%;"></div>
+            <div class="tooltip">${tipText}</div>
+        </div>`;
+    }
+
+    const lo = changed.histogram[0]?.lowerBound ?? 0;
+    const hi = changed.histogram[changed.histogram.length - 1]?.upperBound ?? 0;
+    const loLabel = unit === 'USD' ? '$' + lo.toFixed(0) : isPct ? (lo * 100).toFixed(1) + '%' : lo.toFixed(1);
+    const hiLabel = unit === 'USD' ? '$' + hi.toFixed(0) : isPct ? (hi * 100).toFixed(1) + '%' : hi.toFixed(1);
+
+    // Delta badge
+    let deltaHtml = '';
+    if (deltaP50 != null && deltaP50 !== 0) {
+        const sign = deltaP50 > 0 ? '+' : '';
+        const color = deltaP50 > 0 ? '#dc2626' : '#16a34a';
+        const arrow = deltaP50 > 0 ? '▲' : '▼';
+        const dv = unit === 'USD' ? '$' + Math.abs(deltaP50).toFixed(0) : isPct ? (Math.abs(deltaP50) * 100).toFixed(1) + 'pp' : Math.abs(deltaP50).toFixed(1);
+        deltaHtml = `<span style="margin-left:8px;color:${color};font-weight:600;font-size:13px;">${arrow} ${sign}${deltaP50 > 0 ? '+' : '-'}${dv}</span>`;
+    }
+
+    // Metric bars (P50 comparison)
+    const maxP50 = Math.max(changed.p50, baseline.p50, 0.001);
+    const cBarPct = (changed.p50 / maxP50) * 100;
+    const bBarPct = (baseline.p50 / maxP50) * 100;
+
+    // P95 bars
+    const maxP95 = Math.max(changed.p95, baseline.p95, 0.001);
+    const cBar95 = (changed.p95 / maxP95) * 100;
+    const bBar95 = (baseline.p95 / maxP95) * 100;
+
+    return `
+    <div class="comparison-section">
+        <h3>${title}${deltaHtml}</h3>
+        <div class="overlay-histogram">${bars}</div>
+        <div class="hist-labels"><span>${loLabel}</span><span>${hiLabel}</span></div>
+        <div style="margin-top:12px;">
+            <div class="metric-comparison-row">
+                <div class="metric-comparison-label">P50</div>
+                <div class="metric-comparison-bars">
+                    <div class="metric-bar-track"><div class="metric-bar-fill baseline" style="width:${bBarPct}%;">${fmtVal(baseline.p50)}</div></div>
+                    <div class="metric-bar-track"><div class="metric-bar-fill changed" style="width:${cBarPct}%;">${fmtVal(changed.p50)}</div></div>
+                </div>
+            </div>
+            <div class="metric-comparison-row">
+                <div class="metric-comparison-label">P95</div>
+                <div class="metric-comparison-bars">
+                    <div class="metric-bar-track"><div class="metric-bar-fill baseline" style="width:${bBar95}%;">${fmtVal(baseline.p95)}</div></div>
+                    <div class="metric-bar-track"><div class="metric-bar-fill changed" style="width:${cBar95}%;">${fmtVal(changed.p95)}</div></div>
+                </div>
+            </div>
+            <div class="metric-comparison-row">
+                <div class="metric-comparison-label">Mean</div>
+                <div style="font-size:13px;">
+                    <span style="color:#94a3b8;font-weight:600;">●</span> ${fmtVal(baseline.mean)}
+                    <span style="margin:0 8px;color:var(--gray-300);">→</span>
+                    <span style="color:var(--primary);font-weight:600;">●</span> ${fmtVal(changed.mean)}
+                </div>
+            </div>
+        </div>
+    </div>`;
 }
 
 // =================== DISTRIBUTIONS =====================
@@ -1390,6 +1732,7 @@ async function generateExplanation() {
                     ${explanation.assumptions?.length ? `<div class="meta-group"><h4>Assumptions</h4><ul>${explanation.assumptions.map(a=>`<li>${escHtml(a)}</li>`).join('')}</ul></div>` : ''}
                     ${explanation.caveats?.length ? `<div class="meta-group"><h4>Caveats</h4><ul>${explanation.caveats.map(c=>`<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
                 </div>
+                ${renderFreshnessNotice(explanation.caveats)}
                 <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--gray-200);display:flex;align-items:center;gap:10px;">
                     <span style="font-size:24px;">🔮</span>
                     <div>
@@ -1422,10 +1765,10 @@ async function checkHealth() {
                 const hist = od.hasShipmentHistory
                     ? `\u{1F4CA} Live: ${od.historicalStats.carrierRoutes} carriers, ${od.historicalStats.portPairs} routes, ${od.historicalStats.customsCountries} customs`
                     : '\u{1F4D0} Estimates (no shipment history yet)';
-                document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} ODYSSEY: ${od.ports.toLocaleString()} ports, ${od.carriers} carriers`;
+                document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} ${od.databaseName || 'ODYSSEY'}: ${od.ports.toLocaleString()} ports, ${od.carriers} carriers`;
                 document.getElementById('dataLabel').title = `${od.countries} countries | ${hist}`;
             } else {
-                document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} ODYSSEY: Disconnected`;
+                document.getElementById('dataLabel').textContent = `\u{1F5C4}\u{FE0F} ${od.databaseName || 'ODYSSEY'}: Disconnected`;
             }
         } else {
             document.getElementById('dataDot').style.background = '#f59e0b';
@@ -1462,6 +1805,18 @@ async function checkHealth() {
                 document.getElementById('ollamaLabel').title = `${providerName} not available \u2014 explanations will use template fallback`;
             }
         }
+
+        // RAG knowledge store status
+        const ragChunks = data.rag?.knowledgeChunks ?? 0;
+        if (ragChunks > 0) {
+            document.getElementById('ragDot').style.background = '#22c55e';
+            document.getElementById('ragLabel').textContent = `\u{1F4DA} RAG: ${ragChunks} chunks`;
+            document.getElementById('ragLabel').title = `${ragChunks} knowledge chunks loaded — retrieval-augmented context is active`;
+        } else {
+            document.getElementById('ragDot').style.background = '#f59e0b';
+            document.getElementById('ragLabel').textContent = '\u{1F4DA} RAG: Empty';
+            document.getElementById('ragLabel').title = 'No knowledge chunks loaded — explanations use LLM only (no retrieval context)';
+        }
     } catch {
         document.getElementById('healthDot').style.background = '#ef4444';
         document.getElementById('healthLabel').textContent = 'API Offline';
@@ -1470,6 +1825,8 @@ async function checkHealth() {
         document.getElementById('ollamaDot').style.background = '#ef4444';
         document.getElementById('ollamaLabel').textContent = '\u{1F9E0} LLM: Unknown';
         document.getElementById('ollamaDetail').textContent = '';
+        document.getElementById('ragDot').style.background = '#6b7280';
+        document.getElementById('ragLabel').textContent = '\u{1F4DA} RAG: Unknown';
     }
 }
 
@@ -1549,6 +1906,238 @@ setupPortAutocomplete('origin');
 setupPortAutocomplete('destination');
 setupPortAutocomplete('newDestination');
 loadCarriers();
+
+// =================== FRESHNESS NOTICE =====================
+function renderFreshnessNotice(caveats) {
+    if (!caveats || !caveats.length) return '';
+
+    // Find the provenance caveat (contains "reference context" or source names)
+    const provCaveat = caveats.find(c =>
+        c.includes('reference context') || c.includes('Verified reference context'));
+
+    if (!provCaveat) return '';
+
+    const hasData = provCaveat.includes('Verified reference context was used');
+    const icon = hasData ? 'ℹ️' : '⚠️';
+    const cls = hasData ? '' : ' no-data';
+
+    return `<div class="freshness-notice${cls}">
+        <span class="fn-icon">${icon}</span>
+        <span>${escHtml(provCaveat)}</span>
+    </div>`;
+}
+
+// =================== RAG POPOVER =====================
+let approvedSources = [];
+
+function toggleRagPopover(event) {
+    event.stopPropagation();
+    const indicator = document.getElementById('ragIndicator');
+    indicator.classList.toggle('open');
+    if (indicator.classList.contains('open')) {
+        loadApprovedSources();
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const indicator = document.getElementById('ragIndicator');
+    if (indicator && !indicator.contains(e.target)) {
+        indicator.classList.remove('open');
+    }
+});
+
+async function loadApprovedSources() {
+    try {
+        const resp = await fetch(API_BASE + '/api/knowledge/approved-sources');
+        const data = await resp.json();
+        approvedSources = data.sources || [];
+
+        const listEl = document.getElementById('ragSourceList');
+        listEl.innerHTML = approvedSources.map(s =>
+            `<div class="source-item"><span class="source-dot"></span>${escHtml(s)}</div>`
+        ).join('');
+
+        // Update status
+        const countResp = await fetch(API_BASE + '/api/knowledge/count');
+        const countData = await countResp.json();
+        const statusEl = document.getElementById('ragPopoverStatus');
+        if (countData.count === 0) {
+            statusEl.innerHTML = `<span style="color:#d97706;">⚠️ Empty — no knowledge chunks loaded. Cassandra operates on simulation data only.</span>`;
+        } else {
+            statusEl.innerHTML = `<span style="color:var(--success);">✓ ${countData.count} chunk${countData.count !== 1 ? 's' : ''} loaded.</span>`;
+        }
+
+        // Populate the add-chunk source dropdown
+        const sourceSelect = document.getElementById('kpNewSource');
+        sourceSelect.innerHTML = '<option value="">— Select source —</option>' +
+            approvedSources.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+    } catch {
+        document.getElementById('ragSourceList').innerHTML = '<div style="color:var(--gray-500);">Failed to load.</div>';
+    }
+}
+
+// =================== KNOWLEDGE MANAGEMENT =====================
+function toggleKnowledgePanel() {
+    const panel = document.getElementById('knowledgePanel');
+    panel.classList.toggle('open');
+    document.getElementById('kpChevron').textContent = panel.classList.contains('open') ? '▼' : '▶';
+    if (panel.classList.contains('open')) {
+        loadKnowledgeList();
+        loadApprovedSources();
+    }
+}
+
+async function loadKnowledgeList() {
+    const listEl = document.getElementById('kpChunkList');
+    listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-500);">Loading...</div>';
+
+    try {
+        const resp = await fetch(API_BASE + '/api/knowledge');
+        const chunks = await resp.json();
+
+        document.getElementById('kpCount').textContent = `${chunks.length} chunk${chunks.length !== 1 ? 's' : ''}`;
+
+        if (chunks.length === 0) {
+            listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--gray-500);">
+                <div style="font-size:32px;margin-bottom:8px;">📭</div>
+                <p>No knowledge chunks loaded.</p>
+                <p style="font-size:12px;">Click <strong>+ Add</strong> to ingest verified data from approved sources.</p>
+            </div>`;
+            return;
+        }
+
+        listEl.innerHTML = chunks.map(c => {
+            const meta = c.metadata || {};
+            const source = meta.source || 'No source';
+            const asOf = meta.asOfUtc ? new Date(meta.asOfUtc).toLocaleDateString() : '';
+            return `<div class="kp-chunk">
+                <div style="flex:1;">
+                    <div style="font-weight:600;">${escHtml(c.title)}</div>
+                    <div style="font-size:12px;color:var(--gray-500);">${escHtml(c.category)} · ${c.contentLength} chars${asOf ? ` · as of ${asOf}` : ''} · source: ${escHtml(source)}</div>
+                    <div class="kp-badges">
+                        <span class="kp-badge ${c.verifiedForRag ? 'kp-badge-verified' : 'kp-badge-unverified'}">${c.verifiedForRag ? '✓ RAG Eligible' : '✗ Not RAG Eligible'}</span>
+                        <span class="kp-badge ${c.approvedSource ? 'kp-badge-approved' : 'kp-badge-unapproved'}">${c.approvedSource ? '✓ Approved Source' : '⚠ Unapproved Source'}</span>
+                    </div>
+                </div>
+                <button class="kp-delete" onclick="deleteKnowledgeChunk('${escHtml(c.id)}')" title="Delete">🗑️</button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        listEl.innerHTML = `<div style="color:var(--danger);padding:16px;text-align:center;">Failed to load: ${escHtml(e.message)}</div>`;
+    }
+}
+
+async function searchKnowledge() {
+    const query = document.getElementById('kpSearchQuery').value.trim();
+    if (!query) { loadKnowledgeList(); return; }
+
+    const listEl = document.getElementById('kpChunkList');
+    listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-500);">Searching...</div>';
+
+    try {
+        const resp = await fetch(API_BASE + '/api/knowledge/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, topK: 10, minSimilarity: 0.1 })
+        });
+        const results = await resp.json();
+
+        if (!results.length) {
+            listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-500);">No results found.</div>';
+            return;
+        }
+
+        listEl.innerHTML = results.map(r => {
+            const meta = r.metadata || {};
+            const source = meta.source || 'No source';
+            const sim = (r.similarity * 100).toFixed(1);
+            return `<div class="kp-chunk">
+                <div style="flex:1;">
+                    <div style="font-weight:600;">${escHtml(r.title)} <span style="font-size:11px;color:var(--gray-500);font-weight:400;">${sim}% match</span></div>
+                    <div style="font-size:12px;color:var(--gray-700);margin:4px 0;line-height:1.5;">${escHtml(r.content.substring(0, 200))}${r.content.length > 200 ? '...' : ''}</div>
+                    <div style="font-size:12px;color:var(--gray-500);">source: ${escHtml(source)}</div>
+                    <div class="kp-badges">
+                        <span class="kp-badge ${r.verifiedForRag ? 'kp-badge-verified' : 'kp-badge-unverified'}">${r.verifiedForRag ? '✓ RAG Eligible' : '✗ Not RAG Eligible'}</span>
+                        <span class="kp-badge ${r.approvedSource ? 'kp-badge-approved' : 'kp-badge-unapproved'}">${r.approvedSource ? '✓ Approved Source' : '⚠ Unapproved Source'}</span>
+                    </div>
+                </div>
+                <button class="kp-delete" onclick="deleteKnowledgeChunk('${escHtml(r.id)}')" title="Delete">🗑️</button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        listEl.innerHTML = `<div style="color:var(--danger);padding:16px;">Search failed: ${escHtml(e.message)}</div>`;
+    }
+}
+
+function showAddChunkForm() {
+    document.getElementById('kpAddForm').style.display = 'block';
+    document.getElementById('kpAddResult').textContent = '';
+    if (approvedSources.length === 0) loadApprovedSources();
+}
+
+function hideAddChunkForm() {
+    document.getElementById('kpAddForm').style.display = 'none';
+}
+
+async function submitKnowledgeChunk() {
+    const title = document.getElementById('kpNewTitle').value.trim();
+    const content = document.getElementById('kpNewContent').value.trim();
+    const category = document.getElementById('kpNewCategory').value;
+    const source = document.getElementById('kpNewSource').value;
+    const asOf = document.getElementById('kpNewAsOf').value;
+    const verified = document.getElementById('kpNewVerified').checked;
+    const resultEl = document.getElementById('kpAddResult');
+
+    if (!title || !content) {
+        resultEl.innerHTML = '<span style="color:var(--danger);">Title and content are required.</span>';
+        return;
+    }
+    if (!source) {
+        resultEl.innerHTML = '<span style="color:var(--danger);">Please select an approved source.</span>';
+        return;
+    }
+
+    const metadata = { source };
+    if (verified) metadata.verified = 'true';
+    if (asOf) metadata.asOfUtc = new Date(asOf).toISOString();
+
+    try {
+        const resp = await fetch(API_BASE + '/api/knowledge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content, category, metadata })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            resultEl.innerHTML = `<span style="color:var(--danger);">${escHtml(data.title || 'Failed')}</span>`;
+            return;
+        }
+
+        const warningHtml = data.warning
+            ? `<br><span style="color:#d97706;">⚠ ${escHtml(data.warning)}</span>`
+            : '';
+        resultEl.innerHTML = `<span style="color:var(--success);">✓ Added chunk "${escHtml(data.id)}"</span>${warningHtml}`;
+
+        document.getElementById('kpNewTitle').value = '';
+        document.getElementById('kpNewContent').value = '';
+        loadKnowledgeList();
+        checkHealth();
+    } catch (e) {
+        resultEl.innerHTML = `<span style="color:var(--danger);">Error: ${escHtml(e.message)}</span>`;
+    }
+}
+
+async function deleteKnowledgeChunk(id) {
+    if (!confirm(`Delete knowledge chunk "${id}"?`)) return;
+    try {
+        await fetch(API_BASE + '/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE' });
+        loadKnowledgeList();
+        checkHealth();
+    } catch (e) {
+        alert('Delete failed: ' + e.message);
+    }
+}
 </script>
 </body>
 </html>
